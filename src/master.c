@@ -1,5 +1,6 @@
-
-
+#include <stdbool.h>
+#include <sys/types.h>
+#include "/Users/motegui/Desktop/SO-TP1/src/include/sh_memory.h"
 typedef struct {
     char name[16]; // Nombre del jugador
     unsigned int score; // Puntaje
@@ -20,7 +21,5 @@ typedef struct {
 
     
 void main(){
-    GameState_t game_state = (GameState_t *) createSHM();
+    GameState_t *game_state = (GameState_t *) createSHM("/game_state", size_total);
 }
-
-void *p = shm_open("/game_state", ...);

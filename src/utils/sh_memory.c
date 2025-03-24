@@ -7,6 +7,7 @@
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include "/Users/motegui/Desktop/SO-TP1/src/include/sh_memory.h"
 
 
 void *createSHM(char *name, size_t size) {
