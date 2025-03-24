@@ -7,7 +7,7 @@
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <fcntl.h>
-#include "include/sh_memory.h"
+#include "sh_memory.h"
 
 
 typedef struct{

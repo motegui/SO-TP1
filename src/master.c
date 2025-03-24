@@ -1,6 +1,6 @@
 #include <stdbool.h>
 #include <sys/types.h>
-#include "/Users/motegui/Desktop/SO-TP1/src/include/sh_memory.h"
+#include "sh_memory.h"
 typedef struct {
     char name[16]; // Nombre del jugador
     unsigned int score; // Puntaje
