@@ -8,13 +8,14 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include "sh_memory.h"
+#include <string.h>
 
 
-typedef struct{
+struct shm_t{
     char *name;
     size_t size;
     sem_t sem;
-}shm_t;
+};
 
 
 shm_t *create_shm(char *name) {

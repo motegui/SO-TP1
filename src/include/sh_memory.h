@@ -3,6 +3,8 @@
 
 #include <stddef.h>
 
+typedef struct shm_t shm_t;
+
 shm_t *create_shm(char *name);
 void delete_shm(shm_t *p);
 shm_t * connect_shm(const char *shm_name);
