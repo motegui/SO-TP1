@@ -40,7 +40,7 @@ typedef struct shm_t{
     sem_t sem;
 }shm_t;
 
-shm_t *create_shm(char *name);
+shm_t *create_shm(char *name, size_t size);
 void delete_shm(shm_t *p);
 shm_t * connect_shm(const char *shm_name, size_t size);
 void close_shm(shm_t * shm_p);

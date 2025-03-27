@@ -11,37 +11,32 @@
 #include <string.h>
 
 
-shm_t *create_shm(char *name) {
-    int fd;
-    fd = shm_open(name, O_RDWR | O_CREAT, 0666); // mode solo para crearla
+shm_t *create_shm(char *name, size_t size) {
+    int fd = shm_open(name, O_RDWR | O_CREAT, 0666);
     if (fd == -1) {
         perror("Error: shm_open");
         exit(EXIT_FAILURE);
     }
 
-    // Solo para crearla
-    if (ftruncate(fd, sizeof(shm_t)) == -1) {
+    if (ftruncate(fd, size) == -1) {
         perror("Error: ftruncate");
         exit(EXIT_FAILURE);
     }
 
-    shm_t *shm_p = mmap(NULL, sizeof(shm_t), PROT_WRITE | PROT_READ, MAP_SHARED, fd, 0);
-    if (shm_p == MAP_FAILED) {
+    void *p = mmap(NULL, size, PROT_WRITE | PROT_READ, MAP_SHARED, fd, 0);
+    if (p == MAP_FAILED) {
         perror("Error: mmap");
         exit(EXIT_FAILURE);
     }
 
-    //le asignamos el nombre al puntero
-    strcpy(shm_p->name, name);
+    shm_t *shm = malloc(sizeof(shm_t));
+    shm->shm_p = p;
+    shm->size = size;
+    strncpy(shm->name, name, sizeof(shm->name));
 
-    //inicializacion de semaforo con valor 0
-    if(sem_init(&shm_p->sem,1,0) == -1){
-        perror("Error: sem_init");
-        exit(EXIT_FAILURE);
-    }
-
-    return shm_p;
+    return shm;
 }
+
 
 void delete_shm(shm_t *p){
 
@@ -74,11 +69,10 @@ shm_t *connect_shm(const char *name, size_t size) {
         exit(EXIT_FAILURE);
     }
 
-    shm_t *shm = malloc(sizeof(shm_t));
-    shm->shm_p = shm_p;
+    shm_t *shm = malloc(size);
     shm->size = size;
     strncpy(shm->name, name, sizeof(shm->name));
-
+    shm->shm_p = shm_p; 
     return shm;
 }
 
