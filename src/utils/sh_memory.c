@@ -11,13 +11,6 @@
 #include <string.h>
 
 
-struct shm_t{
-    char *name;
-    size_t size;
-    sem_t sem;
-};
-
-
 shm_t *create_shm(char *name) {
     int fd;
     fd = shm_open(name, O_RDWR | O_CREAT, 0666); // mode solo para crearla
@@ -68,22 +61,25 @@ void delete_shm(shm_t *p){
     }
 }
 
-
-shm_t * connect_shm(const char *shm_name){
-    int fd = shm_open(shm_name, O_RDWR, 0);
-    if(fd == -1){
-        perror("Error: shm_open in connect_shm");
+shm_t *connect_shm(const char *name, size_t size) {
+    int fd = shm_open(name, O_RDWR, 0);
+    if (fd == -1) {
+        perror("shm_open");
         exit(EXIT_FAILURE);
     }
 
-    shm_t * shm_p = mmap(NULL, sizeof(*shm_p), PROT_READ|PROT_WRITE, MAP_SHARED,fd, 0);
-
-    if(shm_p == MAP_FAILED){
-        perror("Error: mmap in connect_shm");
+    void *shm_p = mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+    if (shm_p == MAP_FAILED) {
+        perror("mmap");
         exit(EXIT_FAILURE);
     }
-    
-    return shm_p;
+
+    shm_t *shm = malloc(sizeof(shm_t));
+    shm->shm_p = shm_p;
+    shm->size = size;
+    strncpy(shm->name, name, sizeof(shm->name));
+
+    return shm;
 }
 
 void close_shm(shm_t * shm_p){
