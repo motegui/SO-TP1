@@ -42,14 +42,13 @@ int main(int argc, char *argv[]){
      5) REPETIR HASTA Q game_over == true
      */
     while (!game_state->game_over) {
-    // 1. Esperar aviso del máster
    // 1. Esperar aviso del máster
     printf("[view] Esperando señal del master...\n");
-    sem_wait(&sync->A);
+    sem_wait(&sync->pending_print);
     printf("[view] Recibí señal del master!\n");
 
     // 2. Comenzar protocolo de lectura segura
-    printf("[view] Entrando al protocolo de lectura\n");
+    printf("[view] Entrando a la lectura\n");
     sem_wait(&sync->E);
     sem_wait(&sync->D);
     if (++sync->F == 1) {
@@ -105,7 +104,7 @@ for (int y = 0; y < height; y++) {
     sem_post(&sync->D);
 
     // 5. Avisar al máster que se terminó de imprimir
-    sem_post(&sync->B);
+    sem_post(&sync->print_done);
 }
 
     return 0;

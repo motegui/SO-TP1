@@ -51,8 +51,8 @@ int main(int argc, char *argv[]) {
     // Crear memoria compartida de sincronización
     shm_t *sync_shm = create_shm("/game_sync", sizeof(Sync_t));
     Sync_t *sync = (Sync_t *) sync_shm->shm_p;
-    sem_init(&sync->A, 1, 0);
-    sem_init(&sync->B, 1, 0);
+    sem_init(&sync->pending_print, 1, 0);
+    sem_init(&sync->print_done, 1, 0);
     sem_init(&sync->C, 1, 1);
     sem_init(&sync->D, 1, 1);
     sem_init(&sync->E, 1, 1);
@@ -96,13 +96,13 @@ int main(int argc, char *argv[]) {
 
     // Mostrar estado inicial
     sleep(1);
-    sem_post(&sync->A);
+    sem_post(&sync->pending_print);
     printf("[master] Avisé a la vista que imprima\n");
-    sem_wait(&sync->B);
+    sem_wait(&sync->print_done);
 
     // Finalizar juego
     game_state->game_over = true;
-    sem_post(&sync->A); // para que vista termine su while
+    sem_post(&sync->pending_print); // para que vista termine su while
    for (int i = 0; i < player_qty; i++) {
     wait(NULL);
 }

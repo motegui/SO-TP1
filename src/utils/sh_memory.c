@@ -82,4 +82,6 @@ void close_shm(shm_t * shm_p){
         perror("Error: munmap in close");
         exit(EXIT_FAILURE);
     }
+
+    free(shm_p);
 }
