@@ -1,3 +1,9 @@
+#define BLUE   "\x1b[34m"
+#define YELLOW "\x1b[33m"
+#define RESET  "\x1b[0m"
+
+
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -58,20 +64,30 @@ int main(int argc, char *argv[]){
     printf("[view] Voy a imprimir el estado del juego\n");
 
 
-    // 3. Leer e imprimir el estado del juego
-    printf("\n--- ESTADO DEL JUEGO ---\n");
-  for (int y = 0; y < height; y++) {
+ // Imprimir encabezado
+// Imprimir encabezado
+printf("\n   ");
+for (int x = 0; x < width; x++) {
+    printf("%4d", x);
+}
+printf("\n");
+
+// Imprimir tablero
+for (int y = 0; y < height; y++) {
+    printf("%3d |", y); // índice de fila alineado
     for (int x = 0; x < width; x++) {
-        int cell = game_state->board[y * width + x];
-        if (cell > 0)
-            printf("%2d ", cell);     // recompensa
-        else if (cell == 0)
-            printf(" . ");
+        int valor = game_state->board[y * width + x];
+
+        if (valor < 0)
+            printf(BLUE " J%-2d" RESET, -valor);
+        else if (valor == 0)
+            printf(" ░░ ");
         else
-            printf("J%-1d ", -cell);   // celda ocupada por jugador
+            printf(YELLOW " %2d " RESET, valor);
     }
     printf("\n");
 }
+
 
 
     for (unsigned int i = 0; i < game_state->player_qty; i++) {
