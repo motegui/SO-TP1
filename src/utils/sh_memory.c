@@ -12,6 +12,7 @@
 
 
 shm_t *create_shm(char *name, size_t size) {
+    shm_unlink(name);
     int fd = shm_open(name, O_RDWR | O_CREAT, 0666);
     if (fd == -1) {
         perror("Error: shm_open");

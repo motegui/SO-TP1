@@ -60,18 +60,19 @@ int main(int argc, char *argv[]){
 
     // 3. Leer e imprimir el estado del juego
     printf("\n--- ESTADO DEL JUEGO ---\n");
-    for (int y = 0; y < height; y++) {
-        for (int x = 0; x < width; x++) {
-            int cell = game_state->board[y * width + x];
-            if (cell > 0)
-                printf("%d ", cell);     // recompensa
-            else if (cell == 0)
-                printf(". ");            // celda sin capturar ni recompensa
-            else
-                printf("J%d ", -cell);   // celda ocupada por jugador
-        }
-        printf("\n");
+  for (int y = 0; y < height; y++) {
+    for (int x = 0; x < width; x++) {
+        int cell = game_state->board[y * width + x];
+        if (cell > 0)
+            printf("%2d ", cell);     // recompensa
+        else if (cell == 0)
+            printf(" . ");
+        else
+            printf("J%-1d ", -cell);   // celda ocupada por jugador
     }
+    printf("\n");
+}
+
 
     for (unsigned int i = 0; i < game_state->player_qty; i++) {
         Player_t *p = &game_state->players[i];
