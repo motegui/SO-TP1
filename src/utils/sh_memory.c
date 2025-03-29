@@ -11,9 +11,8 @@
 #include <string.h>
 
 
-shm_t *create_shm(char *name, size_t size) {
-    shm_unlink(name);
-    int fd = shm_open(name, O_RDWR | O_CREAT, 0666);
+shm_t *create_shm(char *name, size_t size, mode_t mode, int prot) {
+    int fd = shm_open(name, O_RDWR | O_CREAT, mode);
     if (fd == -1) {
         perror("Error: shm_open");
         exit(EXIT_FAILURE);
@@ -24,7 +23,7 @@ shm_t *create_shm(char *name, size_t size) {
         exit(EXIT_FAILURE);
     }
 
-    void *p = mmap(NULL, size, PROT_WRITE | PROT_READ, MAP_SHARED, fd, 0);
+    void *p = mmap(NULL, size, prot, MAP_SHARED, fd, 0);
     if (p == MAP_FAILED) {
         perror("Error: mmap");
         exit(EXIT_FAILURE);
@@ -57,14 +56,14 @@ void delete_shm(shm_t *p){
     }
 }
 
-shm_t *connect_shm(const char *name, size_t size) {
-    int fd = shm_open(name, O_RDWR, 0);
+shm_t *connect_shm(const char *name, size_t size, mode_t mode, int prot) {
+    int fd = shm_open(name, mode , 0);
     if (fd == -1) {
         perror("shm_open");
         exit(EXIT_FAILURE);
     }
 
-    void *shm_p = mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+     void *shm_p = mmap(NULL, size, prot, MAP_SHARED, fd, 0);
     if (shm_p == MAP_FAILED) {
         perror("mmap");
         exit(EXIT_FAILURE);

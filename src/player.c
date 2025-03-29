@@ -4,6 +4,7 @@
 #include <string.h>
 #include "sh_memory.h"
 
+
 // Función para obtener el índice del jugador según su pid
 int get_player_id(GameState_t *game_state) {
     pid_t my_pid = getpid();
@@ -24,7 +25,7 @@ int main(int argc, char *argv[]) {
     size_t board_size = width * height * sizeof(int);
     size_t game_state_size = sizeof(GameState_t) + board_size;
 
-    shm_t *state_shm = connect_shm("/game_state", game_state_size);
+    shm_t *state_shm = connect_shm("/game_state", game_state_size, O_RDONLY, PROT_READ);
     if(state_shm == NULL){
         perror("Error al conectar a la memoria compartida del estado del juego");
         exit(EXIT_FAILURE);
@@ -32,7 +33,7 @@ int main(int argc, char *argv[]) {
 
     GameState_t *game_state = (GameState_t *) state_shm->shm_p;
 
-    shm_t *sync_shm = connect_shm("/game_sync", sizeof(Sync_t));
+    shm_t *sync_shm = connect_shm("/game_sync", sizeof(Sync_t), O_RDWR, PROT_READ | PROT_WRITE);
     if(sync_shm == NULL){
         perror("Error al conectar a la memoria compartida de sincronización");
         exit(EXIT_FAILURE);

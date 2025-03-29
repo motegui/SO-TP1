@@ -9,6 +9,7 @@
 #include <time.h>
 
 
+
 int main(int argc, char *argv[]) {
     srand(time(NULL));
 
@@ -35,28 +36,40 @@ int main(int argc, char *argv[]) {
     size_t game_state_size = sizeof(GameState_t) + board_size;
 
     // Crear memoria compartida de estado
-    shm_t *state_shm = create_shm("/game_state", game_state_size);
+    shm_t *state_shm = create_shm("/game_state", game_state_size, 0644, PROT_READ | PROT_WRITE );
+
     GameState_t *game_state = (GameState_t *) state_shm->shm_p;
     game_state->width = width;
     game_state->height = height;
     game_state->game_over = false;
     game_state->player_qty = player_qty;
 
+    if(state_shm == NULL || state_shm->shm_p == NULL) {
+        perror("Error al crear memoria compartida de estado");
+        exit(EXIT_FAILURE);
+    }
+
     // Inicializar tablero con recompensas
     for (int i = 0; i < width * height; i++) {
-    game_state->board[i] = (i % 9) + 1;  // valores 1 a 9
-}
+        game_state->board[i] = (i % 9) + 1;  // valores 1 a 9
+    }
 
 
     // Crear memoria compartida de sincronización
-    shm_t *sync_shm = create_shm("/game_sync", sizeof(Sync_t));
+    shm_t *sync_shm = create_shm("/game_sync", sizeof(Sync_t), 0666, PROT_READ);
+
     Sync_t *sync = (Sync_t *) sync_shm->shm_p;
     sem_init(&sync->pending_print, 1, 0);
     sem_init(&sync->print_done, 1, 0);
     sem_init(&sync->C, 1, 1);
     sem_init(&sync->D, 1, 1);
     sem_init(&sync->E, 1, 1);
-    sync->F = 0;
+    sync->players_reading = 0;
+
+    if(sync_shm == NULL || sync_shm->shm_p == NULL) {
+        perror("Error al crear memoria compartida de sincronización");
+        exit(EXIT_FAILURE);
+    }
 
     // Lanzar procesos jugador
     for (int i = 0; i < player_qty; i++) {
@@ -76,7 +89,7 @@ int main(int argc, char *argv[]) {
                 game_state->players[i].valid_moves = 0;
                 game_state->players[i].invalid_moves = 0;
                 game_state->players[i].blocked = false;
-                snprintf(game_state->players[i].name, sizeof(game_state->players[i].name), "J%d", i+1);
+                snprintf(game_state->players[i].name, sizeof(game_state->players[i].name), "player%d", i + 1);
                 game_state->board[game_state->players[i].y * width + game_state->players[i].x] = -(i + 1);
 
 
@@ -103,9 +116,12 @@ int main(int argc, char *argv[]) {
     // Finalizar juego
     game_state->game_over = true;
     sem_post(&sync->pending_print); // para que vista termine su while
-   for (int i = 0; i < player_qty; i++) {
-    wait(NULL);
-}
+    for (int i = 0; i < player_qty; i++) {
+        wait(NULL);
+    }
+
+    close_shm(state_shm);
+    close_shm(sync_shm);
 
     return 0;
 }

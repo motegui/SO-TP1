@@ -4,6 +4,8 @@
 #include <stdbool.h>
 #include <semaphore.h>
 #include <stddef.h>
+#include <sys/mman.h>
+#include <fcntl.h>
 
 typedef struct {
     char name[16]; // Nombre del jugador
@@ -30,7 +32,7 @@ typedef struct {
     sem_t C; // Mutex para evitar inanición del master al acceder al estado
     sem_t D; // Mutex para el estado del juego
     sem_t E; // Mutex para la siguiente variable
-    unsigned int F; // Cantidad de jugadores leyendo el estado
+    unsigned int players_reading; // Cantidad de jugadores leyendo el estado
 } Sync_t;
 
 typedef struct shm_t{
@@ -40,9 +42,9 @@ typedef struct shm_t{
     sem_t sem;
 }shm_t;
 
-shm_t *create_shm(char *name, size_t size);
+shm_t *create_shm(char *name, size_t size, mode_t mode, int prot);
 void delete_shm(shm_t *p);
-shm_t * connect_shm(const char *shm_name, size_t size);
+shm_t *connect_shm(const char *name, size_t size, mode_t mode, int prot);
 void close_shm(shm_t * shm_p);
 
 #endif
