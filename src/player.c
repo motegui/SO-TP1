@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <stdbool.h>
 #include <string.h>
 #include "sh_memory.h"
 
@@ -14,6 +15,12 @@ int get_player_id(GameState_t *game_state) {
         }
     }
     return -1; // no encontrado
+}
+
+bool hit_border(int x, int y, int dx, int dy, int width, int height) {
+    int nx = x + dx;
+    int ny = y + dy;
+    return (nx <= 0 || nx >= width || ny <= 0 || ny >= height);
 }
 
 int main(int argc, char *argv[]) {
@@ -57,6 +64,13 @@ int main(int argc, char *argv[]) {
     sem_post(&sync->E);
 
 
+    int best_dir = 1;
+
+    int dir_vec[3] = {-1, 0, 1};
+    int dir_x_idx = 2; 
+    int dir_y_idx = 0; 
+    
+
     // 3. Bucle principal hasta que se termine el juego
     while (!game_state->game_over) {
         usleep(300000); 
@@ -66,38 +80,26 @@ int main(int argc, char *argv[]) {
         sem_wait(&sync->E); // Exclusión mutua total
 
         Player_t *p = &game_state->players[id];
-        int best_value = -1;
-        int best_x = p->x;
-        int best_y = p->y;
+    
+        int x = p -> x;
+        int y = p -> y;
 
-        for (int d = 0; d < 8; d++) {
-            int nx = p->x + dx[d];
-            int ny = p->y + dy[d];
+        int dir_x = dir_vec[dir_x_idx];
+        int dir_y = dir_vec[dir_y_idx];
 
-            if (nx >= 0 && nx < width && ny >= 0 && ny < height) {
-                int cell = game_state->board[ny * width + nx];
-                if (cell > best_value) {
-                    best_value = cell;
-                    best_x = nx;
-                    best_y = ny;
-                }
-            }
+        unsigned char dir = (unsigned char) best_dir;
+
+        write(1, &dir, 1);
+        fprintf(stderr, "[player] Me muevo con dir=%d, %d, %d\n", best_dir, x + dir_x, y + dir_y);
+
+        if (hit_border(x, y, dir_x, dir_y, game_state -> width-1, game_state -> height-1)){
+            
+            best_dir = (best_dir + 1) % 8;
+            dir_x_idx = (dir_x_idx + 1) % 3;
+            dir_y_idx = (dir_y_idx + 1) % 3;
+    
         }
-
-
-        if (best_value > 0) {
-            int old_x = p->x;
-            int old_y = p->y;
-            game_state->board[old_y * width + old_x] = 0;
-            p->x = best_x;
-            p->y = best_y;
-            p->score += best_value;
-            p->valid_moves++;
-            game_state->board[best_y * width + best_x] = -id - 1;
-        } else {
-            p->invalid_moves++;
-        }
-
+    
         // 6. Fin
         sem_post(&sync->E);
         sem_post(&sync->C);
