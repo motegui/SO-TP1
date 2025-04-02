@@ -94,7 +94,7 @@ int main(int argc, char *argv[]) {
 
         if (hit_border(x, y, dir_x, dir_y, game_state -> width-1, game_state -> height-1)){
             
-            best_dir = (best_dir + 1) % 8;
+            best_dir = (best_dir + 3) % 8;
             dir_x_idx = (dir_x_idx + 1) % 3;
             dir_y_idx = (dir_y_idx + 1) % 3;
     
@@ -106,7 +106,7 @@ int main(int argc, char *argv[]) {
     }
 
     
-    printf("[player] El juego terminó. Salgo!\n");
+    fprintf(stderr,"[player] El juego terminó. Salgo!\n");
 
     close_shm(state_shm);
     close_shm(sync_shm);

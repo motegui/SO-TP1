@@ -69,18 +69,17 @@ shm_t *connect_shm(const char *name, size_t size, mode_t mode, int prot) {
         exit(EXIT_FAILURE);
     }
 
-    shm_t *shm = malloc(size);
+    shm_t *shm = malloc(sizeof(shm_t));
     shm->size = size;
     strncpy(shm->name, name, sizeof(shm->name));
     shm->shm_p = shm_p; 
     return shm;
 }
 
-void close_shm(shm_t * shm_p){
-    if(munmap(shm_p,sizeof(*shm_p)) == -1){
+void close_shm(shm_t *shm) {
+    if (munmap(shm->shm_p, shm->size) == -1) {
         perror("Error: munmap in close");
         exit(EXIT_FAILURE);
     }
-
-    free(shm_p);
+    free(shm);
 }
