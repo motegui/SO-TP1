@@ -9,6 +9,32 @@
 #include <time.h>
 
 
+void launch_player_processes(int player_qty, GameState_t *game_state,char *players[], int width, int height) {
+    for (int i = 0; i < player_qty; i++) {
+        pid_t pid = fork();
+        if (pid == 0) {
+            char width_str[10], height_str[10];
+            sprintf(width_str, "%d", width);
+            sprintf(height_str, "%d", height);
+            execl(players[i], players[i], width_str, height_str, NULL);
+            perror("execl jugador");
+            exit(EXIT_FAILURE);
+        }
+        else{
+            game_state->players[i].pid = pid;
+            game_state->players[i].x = rand() % width;
+            game_state->players[i].y = rand() % height;
+            game_state->players[i].score = 0;
+            game_state->players[i].valid_moves = 0;
+            game_state->players[i].invalid_moves = 0;
+            game_state->players[i].blocked = false;
+            snprintf(game_state->players[i].name, sizeof(game_state->players[i].name), "player%d", i + 1);
+            game_state->board[game_state->players[i].y * width + game_state->players[i].x] = -(i + 1);
+        }
+    }
+}
+
+
 
 int main(int argc, char *argv[]) {
     srand(time(NULL));
@@ -37,17 +63,14 @@ int main(int argc, char *argv[]) {
 
     // Crear memoria compartida de estado
     shm_t *state_shm = create_shm("/game_state", game_state_size, 0644, PROT_READ | PROT_WRITE );
+    check_shm(state_shm);
+
 
     GameState_t *game_state = (GameState_t *) state_shm->shm_p;
     game_state->width = width;
     game_state->height = height;
     game_state->game_over = false;
     game_state->player_qty = player_qty;
-
-    if(state_shm == NULL || state_shm->shm_p == NULL) {
-        perror("Error al crear memoria compartida de estado");
-        exit(EXIT_FAILURE);
-    }
 
     // Inicializar tablero con recompensas
     for (int i = 0; i < width * height; i++) {
@@ -57,44 +80,20 @@ int main(int argc, char *argv[]) {
 
     // Crear memoria compartida de sincronización
     shm_t *sync_shm = create_shm("/game_sync", sizeof(Sync_t), 0666, PROT_READ);
+    check_shm(sync_shm);
+
 
     Sync_t *sync = (Sync_t *) sync_shm->shm_p;
     sem_init(&sync->pending_print, 1, 0);
     sem_init(&sync->print_done, 1, 0);
-    sem_init(&sync->C, 1, 1);
-    sem_init(&sync->D, 1, 1);
-    sem_init(&sync->E, 1, 1);
+    sem_init(&sync->master_turn_mutex, 1, 1);
+    sem_init(&sync->readers_count_mutex, 1, 1);
+    sem_init(&sync->state_access_mutex, 1, 1);
     sync->players_reading = 0;
 
-    if(sync_shm == NULL || sync_shm->shm_p == NULL) {
-        perror("Error al crear memoria compartida de sincronización");
-        exit(EXIT_FAILURE);
-    }
-
     // Lanzar procesos jugador
-    for (int i = 0; i < player_qty; i++) {
-        pid_t pid = fork();
-        if (pid == 0) {
-            char width_str[10], height_str[10];
-            sprintf(width_str, "%d", width);
-            sprintf(height_str, "%d", height);
-            execl(players[i], players[i], width_str, height_str, NULL);
-            perror("execl jugador");
-            exit(EXIT_FAILURE);
-        } else {
-                game_state->players[i].pid = pid;
-                game_state->players[i].x = rand() % width;
-                game_state->players[i].y = rand() % height;
-                game_state->players[i].score = 0;
-                game_state->players[i].valid_moves = 0;
-                game_state->players[i].invalid_moves = 0;
-                game_state->players[i].blocked = false;
-                snprintf(game_state->players[i].name, sizeof(game_state->players[i].name), "player%d", i + 1);
-                game_state->board[game_state->players[i].y * width + game_state->players[i].x] = -(i + 1);
+    launch_player_processes(player_qty, game_state, players, width, height);
 
-
-        }
-    }
 
     // Lanzar la vista
     pid_t pid = fork();

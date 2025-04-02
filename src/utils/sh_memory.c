@@ -83,3 +83,13 @@ void close_shm(shm_t *shm) {
     }
     free(shm);
 }
+
+
+void check_shm(shm_t * shm , char* msg){
+    if(shm == NULL){
+        perror(msg);
+        exit(EXIT_FAILURE);
+    }
+}
+
+

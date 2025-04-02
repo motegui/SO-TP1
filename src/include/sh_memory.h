@@ -29,9 +29,9 @@ typedef struct {
 typedef struct {
     sem_t pending_print; // Se usa para indicarle a la vista que hay cambios por imprimir
     sem_t print_done; // Se usa para indicarle al master que la vista terminó de imprimir
-    sem_t C; // Mutex para evitar inanición del master al acceder al estado
-    sem_t D; // Mutex para el estado del juego
-    sem_t E; // Mutex para la siguiente variable
+    sem_t master_turn_mutex; // Mutex para evitar inanición del master al acceder al estado
+    sem_t readers_count_mutex; // Mutex para el estado del juego
+    sem_t state_access_mutex; // Mutex para la siguiente variable
     unsigned int players_reading; // Cantidad de jugadores leyendo el estado
 } Sync_t;
 

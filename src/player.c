@@ -33,10 +33,7 @@ int main(int argc, char *argv[]) {
     size_t game_state_size = sizeof(GameState_t) + board_size;
 
     shm_t *state_shm = connect_shm("/game_state", game_state_size, O_RDONLY, PROT_READ);
-    if(state_shm == NULL){
-        perror("Error al conectar a la memoria compartida del estado del juego");
-        exit(EXIT_FAILURE);
-    }
+    check_shm(state_shm);
 
     GameState_t *game_state = (GameState_t *) state_shm->shm_p;
 
@@ -59,9 +56,9 @@ int main(int argc, char *argv[]) {
         exit(EXIT_FAILURE);
     }
 
-    sem_wait(&sync->E);
+    sem_wait(&sync->state_access_mutex);
     printf("[player] Soy el jugador #%d (PID %d)\n", id, getpid());
-    sem_post(&sync->E);
+    sem_post(&sync->state_access_mutex);
 
 
     int best_dir = 1;
@@ -76,8 +73,8 @@ int main(int argc, char *argv[]) {
         usleep(300000); 
 
         // 4. Protocolo de escritura segura
-        sem_wait(&sync->C); // Turno de escritura
-        sem_wait(&sync->E); // Exclusión mutua total
+        sem_wait(&sync->master_turn_mutex); // Turno de escritura
+        sem_wait(&sync->state_access_mutex); // Exclusión mutua total
 
         Player_t *p = &game_state->players[id];
     
@@ -101,10 +98,9 @@ int main(int argc, char *argv[]) {
         }
     
         // 6. Fin
-        sem_post(&sync->E);
-        sem_post(&sync->C);
+        sem_post(&sync->state_access_mutex); // Fin de escritura
+        sem_post(&sync->master_turn_mutex); // Fin del turno de escritura
     }
-
     
     fprintf(stderr,"[player] El juego terminó. Salgo!\n");
 
