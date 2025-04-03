@@ -63,7 +63,7 @@ int main(int argc, char *argv[]) {
 
     // Crear memoria compartida de estado
     shm_t *state_shm = create_shm("/game_state", game_state_size, 0644, PROT_READ | PROT_WRITE );
-    check_shm(state_shm);
+    check_shm(state_shm, "Error al crear la memoria compartida del estado del juego");
 
 
     GameState_t *game_state = (GameState_t *) state_shm->shm_p;
@@ -80,7 +80,7 @@ int main(int argc, char *argv[]) {
 
     // Crear memoria compartida de sincronización
     shm_t *sync_shm = create_shm("/game_sync", sizeof(Sync_t), 0666, PROT_READ);
-    check_shm(sync_shm);
+    check_shm(sync_shm, "Error al crear la memoria compartida de sincronización");
 
 
     Sync_t *sync = (Sync_t *) sync_shm->shm_p;

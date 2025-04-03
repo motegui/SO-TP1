@@ -46,5 +46,7 @@ shm_t *create_shm(char *name, size_t size, mode_t mode, int prot);
 void delete_shm(shm_t *p);
 shm_t *connect_shm(const char *name, size_t size, mode_t mode, int prot);
 void close_shm(shm_t * shm_p);
+void check_shm(shm_t * shm , char* msg);
+
 
 #endif

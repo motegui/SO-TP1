@@ -33,15 +33,12 @@ int main(int argc, char *argv[]) {
     size_t game_state_size = sizeof(GameState_t) + board_size;
 
     shm_t *state_shm = connect_shm("/game_state", game_state_size, O_RDONLY, PROT_READ);
-    check_shm(state_shm);
+    check_shm(state_shm, "Error al conectar a la memoria compartida del estado del juego");
 
     GameState_t *game_state = (GameState_t *) state_shm->shm_p;
 
     shm_t *sync_shm = connect_shm("/game_sync", sizeof(Sync_t), O_RDWR, PROT_READ | PROT_WRITE);
-    if(sync_shm == NULL){
-        perror("Error al conectar a la memoria compartida de sincronización");
-        exit(EXIT_FAILURE);
-    }
+    check_shm(sync_shm, "Error al conectar a la memoria compartida de sincronización");
 
 
     Sync_t *sync = (Sync_t *) sync_shm->shm_p;

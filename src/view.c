@@ -13,6 +13,36 @@
 #include "sh_memory.h"
 
 
+void print_table(int width, int height, GameState_t *game_state) {
+    for (int y = 0; y < height; y++) {
+        printf("%3d |", y); // Índice de fila alineado
+        for (int x = 0; x < width; x++) {
+            int valor = game_state->board[y * width + x];
+
+            if (valor < 0)
+                printf(BLUE " J%-2d" RESET, -valor); // Jugador
+            else if (valor == 0)
+                printf(" ░░ "); // Celda vacía
+            else
+                printf(YELLOW " %2d " RESET, valor); // Recompensa
+        }
+        printf("\n");
+    }
+}
+
+
+void print_players_info(GameState_t *game_state) {
+    for (unsigned int i = 0; i < game_state->player_qty; i++) {
+        Player_t *p = &game_state->players[i];
+        printf("Jugador %s | Score: %d | Pos: (%d,%d) | Val: %d | Inv: %d | %s\n",
+               p->name, p->score, p->x, p->y,
+               p->valid_moves, p->invalid_moves,
+               p->blocked ? "BLOQUEADO" : "ACTIVO");
+    }
+}
+
+
+
 int main(int argc, char *argv[]){
     //verifico la cantidad de argumentos
     if (argc != 3) {
@@ -29,26 +59,14 @@ int main(int argc, char *argv[]){
 
 
     shm_t *state_shm = connect_shm("/game_state", game_state_size, O_RDONLY, PROT_READ); //Conectarse a la memoria compartida del estado del juego
-    if(state_shm == NULL) {
-        fprintf(stderr, "Error al conectar a la memoria compartida del estado del juego\n");
-        return 1;
-    }
+    check_shm(state_shm, "Error al conectar a la memoria compartida del estado del juego");
 
     GameState_t *game_state = (GameState_t *) state_shm->shm_p;
 
     shm_t *sync_shm = connect_shm("/game_sync", sizeof(Sync_t), O_RDWR, PROT_READ | PROT_WRITE);// Conectarse a la memoria compartida de sincronización
-
-    if(sync_shm == NULL) {
-        fprintf(stderr, "Error al conectar a la memoria compartida de sincronización\n");
-        return 1;
-    }
+    check_shm(sync_shm, "Error al conectar a la memoria compartida de sincronización");
 
     Sync_t *sync = (Sync_t *) sync_shm->shm_p;
-
-    if(sync_shm->shm_p == NULL) {
-        fprintf(stderr, "Error al conectar a la memoria compartida de sincronización\n");
-        return 1;
-    }
      //entonces ahora a partir de aca, lo que tengo que hacer es:
      /*
      1) la vista tiene que esperar a que el master le avise que hay algo nuevo para mostrar (sem A)
@@ -87,28 +105,12 @@ int main(int argc, char *argv[]){
         printf("\n");
 
         // Imprimir tablero
-        for (int y = 0; y < height; y++) {
-            printf("%3d |", y); // índice de fila alineado
-            for (int x = 0; x < width; x++) {
-                int valor = game_state->board[y * width + x];
+       print_table(width, height, game_state);
 
-                if (valor < 0)
-                    printf(BLUE " J%-2d" RESET, -valor);
-                else if (valor == 0)
-                    printf(" ░░ ");
-                else
-                    printf(YELLOW " %2d " RESET, valor);
-        }
         printf("\n");
-    }
+        print_players_info(game_state);
+        printf("\n");
 
-        for (unsigned int i = 0; i < game_state->player_qty; i++) {
-            Player_t *p = &game_state->players[i];
-            printf("Jugador %s | Score: %d | Pos: (%d,%d) | Val: %d | Inv: %d | %s\n",
-                p->name, p->score, p->x, p->y,
-                p->valid_moves, p->invalid_moves,
-                p->blocked ? "BLOQUEADO" : "ACTIVO");
-        }
 
         // // 4. Fin de lectura segura
         // sem_wait(&sync->D);
