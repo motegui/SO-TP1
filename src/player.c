@@ -45,9 +45,10 @@ int main(int argc, char *argv[]) {
 
     // 2. Identificarme en el array de jugadores
     int id = get_player_id(game_state);
-    int dx[] = { -1,  0,  1, -1, 1, -1,  0, 1 };
-    int dy[] = { -1, -1, -1,  0, 0,  1,  1, 1 };
-
+  
+    int dx[8] = {  0,  1,  1,  1,  0, -1, -1, -1 };
+    int dy[8] = { -1, -1,  0,  1,  1,  1,  0, -1 };
+    
     if (id == -1) {
         printf("[player] No encontré mi PID en la lista!\n");
         exit(EXIT_FAILURE);
@@ -78,20 +79,30 @@ int main(int argc, char *argv[]) {
         int x = p -> x;
         int y = p -> y;
 
-        int dir_x = dir_vec[dir_x_idx];
-        int dir_y = dir_vec[dir_y_idx];
+        int best_value = -1; // best_value esta en -1 porque  me sirve para dsp decir acepto cualq valor >-1 como mejor candidato
+        int best_dir = -1; //nos sirve para detectar si no se encontro ningun movimient0
+        for(int d=0; d<8 ; d++){
+            int nx= x+dx[d];
+            int ny= y+dy[d];
 
-        unsigned char dir = (unsigned char) best_dir;
+            if(nx>=0 && nx<width && ny>=0 && ny<height){
+                int val = game_state-> board[ny*width + nx];
 
-        write(1, &dir, 1);
-        fprintf(stderr, "[player] Me muevo con dir=%d, %d, %d\n", best_dir, x + dir_x, y + dir_y);
-
-        if (hit_border(x, y, dir_x, dir_y, game_state -> width-1, game_state -> height-1)){
-            
-            best_dir = (best_dir + 3) % 8;
-            dir_x_idx = (dir_x_idx + 1) % 3;
-            dir_y_idx = (dir_y_idx + 1) % 3;
-    
+                if (val >= 1 && val <= 9 && val > best_value) {
+                    best_value = val;
+                    best_dir = d;
+                }
+            }
+        }
+        if(best_value > 0 && best_dir != -1){
+            unsigned char dir; //esto es porque se espera un valor de 0-7 de adonde se quieren mover
+            dir = (unsigned char) best_dir; //lo casteo para q ocupe exactamente un byte
+            write(1, &dir,1); //envio la direc al pipe de salida
+            fprintf(stderr, "[player] Me muevo a dir %d con valor %d\n", best_dir, best_value);
+        }        
+        else{
+            p->blocked =true;
+            fprintf(stderr, "[player] Estoy bloqueado, no hay movimiento válido.\n");
         }
     
         // 6. Fin
