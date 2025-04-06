@@ -12,9 +12,19 @@
 
 
 shm_t *create_shm(char *name, size_t size, mode_t mode, int prot) {
+    
+    shm_t *shm = malloc(sizeof(shm_t));
+
+    if (shm == NULL) {
+        perror("Error: malloc");
+        exit(EXIT_FAILURE);
+        return NULL;
+    }
+
     int fd = shm_open(name, O_RDWR | O_CREAT, mode);
     if (fd == -1) {
         perror("Error: shm_open");
+        free(shm);
         exit(EXIT_FAILURE);
     }
 
@@ -29,11 +39,12 @@ shm_t *create_shm(char *name, size_t size, mode_t mode, int prot) {
         exit(EXIT_FAILURE);
     }
 
-    shm_t *shm = malloc(sizeof(shm_t));
+    
     shm->shm_p = p;
     shm->size = size;
-    strncpy(shm->name, name, sizeof(shm->name));
-
+    strncpy(shm->name, name, sizeof(shm->name)-1);
+    shm->name[sizeof(shm->name)-1] = '\0';
+    
     return shm;
 }
 
@@ -86,7 +97,7 @@ void close_shm(shm_t *shm) {
 
 
 void check_shm(shm_t * shm , char* msg){
-    if(shm == NULL){
+    if(shm == NULL || shm->shm_p == NULL){
         perror(msg);
         exit(EXIT_FAILURE);
     }

@@ -8,6 +8,10 @@
 #include "sh_memory.h"
 #include <time.h>
 
+void launch_player_processes(int player_qty, GameState_t *game_state,char *players[], int width, int height);
+void initialize_game_state(GameState_t *game_state, int width, int height);
+void initialize_sems(Sync_t *sync);
+
 
 void launch_player_processes(int player_qty, GameState_t *game_state,char *players[], int width, int height) {
     for (int i = 0; i < player_qty; i++) {
@@ -34,6 +38,26 @@ void launch_player_processes(int player_qty, GameState_t *game_state,char *playe
     }
 }
 
+void initialize_game_state(GameState_t *game_state, int width, int height) {
+    game_state->width = width;
+    game_state->height = height;
+    game_state->game_over = false;
+    game_state->player_qty = 0;
+
+    // Inicializar tablero con recompensas
+    for (int i = 0; i < width * height; i++) {
+        game_state->board[i] = (i % 9) + 1;  // valores 1 a 9
+    }
+}
+
+void initialize_sems(Sync_t *sync) {
+    sem_init(&sync->pending_print, 1, 0);
+    sem_init(&sync->print_done, 1, 0);
+    sem_init(&sync->master_turn_mutex, 1, 1);
+    sem_init(&sync->readers_count_mutex, 1, 1);
+    sem_init(&sync->state_access_mutex, 1, 1);
+    sync->players_reading = 0;
+}
 
 
 int main(int argc, char *argv[]) {
@@ -58,42 +82,37 @@ int main(int argc, char *argv[]) {
         }
     }
 
+    if (width <= 0 || height <= 0) {
+        fprintf(stderr, "Error: Las dimensiones del tablero deben ser mayores que 0\n");
+        exit(EXIT_FAILURE);
+    }
+
+    if (player_qty > 9) {
+        fprintf(stderr, "Error: No se pueden especificar más de 9 jugadores\n");
+        exit(EXIT_FAILURE);
+    }
+
     size_t board_size = width * height * sizeof(int);
     size_t game_state_size = sizeof(GameState_t) + board_size;
 
     // Crear memoria compartida de estado
-    shm_t *state_shm = create_shm("/game_state", game_state_size, 0644, PROT_READ | PROT_WRITE );
+    shm_t *state_shm = create_shm("/game_state", game_state_size, 0666, PROT_READ | PROT_WRITE );
     check_shm(state_shm, "Error al crear la memoria compartida del estado del juego");
 
-
     GameState_t *game_state = (GameState_t *) state_shm->shm_p;
-    game_state->width = width;
-    game_state->height = height;
-    game_state->game_over = false;
-    game_state->player_qty = player_qty;
+    check_shm(game_state, "Error al mapear la memoria compartida del estado del juego");
 
-    // Inicializar tablero con recompensas
-    for (int i = 0; i < width * height; i++) {
-        game_state->board[i] = (i % 9) + 1;  // valores 1 a 9
-    }
+    initialize_game_state(game_state, width, height);
 
-
-    // Crear memoria compartida de sincronización
-    shm_t *sync_shm = create_shm("/game_sync", sizeof(Sync_t), 0666, PROT_READ);
+    shm_t *sync_shm = create_shm("/game_sync", sizeof(Sync_t), 0666, PROT_READ | PROT_WRITE);
     check_shm(sync_shm, "Error al crear la memoria compartida de sincronización");
 
-
     Sync_t *sync = (Sync_t *) sync_shm->shm_p;
-    sem_init(&sync->pending_print, 1, 0);
-    sem_init(&sync->print_done, 1, 0);
-    sem_init(&sync->master_turn_mutex, 1, 1);
-    sem_init(&sync->readers_count_mutex, 1, 1);
-    sem_init(&sync->state_access_mutex, 1, 1);
-    sync->players_reading = 0;
+    check_shm(sync, "Error al mapear la memoria compartida de sincronización");
 
-    // Lanzar procesos jugador
+    initialize_sems(sync);
+
     launch_player_processes(player_qty, game_state, players, width, height);
-
 
     // Lanzar la vista
     pid_t pid = fork();
@@ -106,8 +125,11 @@ int main(int argc, char *argv[]) {
         exit(EXIT_FAILURE);
     }
 
-    // Mostrar estado inicial
-    sleep(1);
+    // Esperar a que la vista esté lista
+    sem_wait(&sync->print_done);
+    printf("[master] La vista está lista\n");
+
+    //Mostrar estado inicial
     sem_post(&sync->pending_print);
     printf("[master] Avisé a la vista que imprima\n");
     sem_wait(&sync->print_done);
@@ -115,12 +137,13 @@ int main(int argc, char *argv[]) {
     // Finalizar juego
     game_state->game_over = true;
     sem_post(&sync->pending_print); // para que vista termine su while
-    for (int i = 0; i < player_qty; i++) {
-        wait(NULL);
-    }
+    wait(NULL);
+    printf("[master] La vista terminó\n");
 
     close_shm(state_shm);
     close_shm(sync_shm);
+    delete_shm("/game_state");
+    delete_shm("/game_sync");
 
     return 0;
 }

@@ -39,6 +39,7 @@ typedef struct shm_t{
     void *shm_p;
     char name[64];
     size_t size;
+    int fd;
     sem_t sem;
 }shm_t;
 

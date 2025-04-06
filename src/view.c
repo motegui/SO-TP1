@@ -95,7 +95,11 @@ int main(int argc, char *argv[]){
 
         // 3. Leer e imprimir el estado del juego
         // printf("[view] Voy a imprimir el estado del juego\n");
-
+        
+        if(game_state->game_over){
+            printf("[view] El juego ha terminado\n");
+            break;
+        }
 
         // Imprimir encabezado
         printf("\n   ");
@@ -104,9 +108,8 @@ int main(int argc, char *argv[]){
         }
         printf("\n");
 
-        // Imprimir tablero
-       print_table(width, height, game_state);
-
+        // Imprimir tablero y estado del juego
+        print_table(width, height, game_state);
         printf("\n");
         print_players_info(game_state);
         printf("\n");
