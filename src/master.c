@@ -97,10 +97,11 @@ int main(int argc, char *argv[]) {
 
     // Crear memoria compartida de estado
     shm_t *state_shm = create_shm("/game_state", game_state_size, 0666, PROT_READ | PROT_WRITE );
-    check_shm(state_shm, "Error al crear la memoria compartida del estado del juego");
+    check_shm((shm_t *)state_shm, "Error al crear la memoria compartida del estado del juego");
 
     GameState_t *game_state = (GameState_t *) state_shm->shm_p;
-    check_shm(game_state, "Error al mapear la memoria compartida del estado del juego");
+    check_shm_ptr(game_state, "Error al mapear la memoria compartida del estado del juego");
+    //check_shm(game_state, "Error al mapear la memoria compartida del estado del juego");
 
     initialize_game_state(game_state, width, height);
 
@@ -108,8 +109,8 @@ int main(int argc, char *argv[]) {
     check_shm(sync_shm, "Error al crear la memoria compartida de sincronización");
 
     Sync_t *sync = (Sync_t *) sync_shm->shm_p;
-    check_shm(sync, "Error al mapear la memoria compartida de sincronización");
-
+    check_shm_ptr(sync, "Error al mapear la memoria compartida de sincronización");
+    
     initialize_sems(sync);
 
     launch_player_processes(player_qty, game_state, players, width, height);
@@ -142,8 +143,8 @@ int main(int argc, char *argv[]) {
 
     close_shm(state_shm);
     close_shm(sync_shm);
-    delete_shm("/game_state");
-    delete_shm("/game_sync");
+    shm_unlink("/game_state");
+    shm_unlink("/game_sync");
 
     return 0;
 }

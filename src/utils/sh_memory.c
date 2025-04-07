@@ -14,37 +14,37 @@
 shm_t *create_shm(char *name, size_t size, mode_t mode, int prot) {
     
     shm_t *shm = malloc(sizeof(shm_t));
-
     if (shm == NULL) {
-        perror("Error: malloc");
+        perror("Error al asignar memoria para shm_t");
         exit(EXIT_FAILURE);
-        return NULL;
     }
 
-    int fd = shm_open(name, O_RDWR | O_CREAT, mode);
-    if (fd == -1) {
-        perror("Error: shm_open");
+    shm->fd = shm_open(name, O_CREAT | O_RDWR, mode);
+    if (shm->fd == -1) {
+        perror("Error al crear la memoria compartida");
         free(shm);
         exit(EXIT_FAILURE);
     }
 
-    if (ftruncate(fd, size) == -1) {
-        perror("Error: ftruncate");
+    if (ftruncate(shm->fd, size) == -1) {
+        perror("Error al configurar el tamaño de la memoria compartida");
+        close(shm->fd);
+        free(shm);
         exit(EXIT_FAILURE);
     }
 
-    void *p = mmap(NULL, size, prot, MAP_SHARED, fd, 0);
-    if (p == MAP_FAILED) {
-        perror("Error: mmap");
+    shm->shm_p = mmap(NULL, size, prot, MAP_SHARED, shm->fd, 0);
+    if (shm->shm_p == MAP_FAILED) {
+        perror("Error al mapear la memoria compartida");
+        close(shm->fd);
+        free(shm);
         exit(EXIT_FAILURE);
     }
 
-    
-    shm->shm_p = p;
     shm->size = size;
-    strncpy(shm->name, name, sizeof(shm->name)-1);
-    shm->name[sizeof(shm->name)-1] = '\0';
-    
+    strncpy(shm->name, name, sizeof(shm->name) - 1);
+    shm->name[sizeof(shm->name) - 1] = '\0';
+
     return shm;
 }
 
@@ -74,7 +74,7 @@ shm_t *connect_shm(const char *name, size_t size, mode_t mode, int prot) {
         exit(EXIT_FAILURE);
     }
 
-     void *shm_p = mmap(NULL, size, prot, MAP_SHARED, fd, 0);
+    void *shm_p = mmap(NULL, size, prot, MAP_SHARED, fd, 0);
     if (shm_p == MAP_FAILED) {
         perror("mmap");
         exit(EXIT_FAILURE);
@@ -84,6 +84,7 @@ shm_t *connect_shm(const char *name, size_t size, mode_t mode, int prot) {
     shm->size = size;
     strncpy(shm->name, name, sizeof(shm->name));
     shm->shm_p = shm_p; 
+    shm->fd = fd;
     return shm;
 }
 
@@ -103,4 +104,10 @@ void check_shm(shm_t * shm , char* msg){
     }
 }
 
+void check_shm_ptr(void * shm_p , char* msg){
+    if(shm_p == NULL){
+        perror(msg);
+        exit(EXIT_FAILURE);
+    }
+}
 

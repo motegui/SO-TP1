@@ -48,6 +48,6 @@ void delete_shm(shm_t *p);
 shm_t *connect_shm(const char *name, size_t size, mode_t mode, int prot);
 void close_shm(shm_t * shm_p);
 void check_shm(shm_t * shm , char* msg);
-
+void check_shm_ptr(void * shm_p , char* msg);
 
 #endif
