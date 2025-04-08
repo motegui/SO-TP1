@@ -45,8 +45,8 @@ int main(int argc, char *argv[]) {
 
     // 2. Identificarme en el array de jugadores
     int id = get_player_id(game_state);
-    int dx[] = { -1,  0,  1, -1, 1, -1,  0, 1 };
-    int dy[] = { -1, -1, -1,  0, 0,  1,  1, 1 };
+    int dx[8] = {  0,  1,  1,  1,  0, -1, -1, -1 };
+    int dy[8] = { -1, -1,  0,  1,  1,  1,  0, -1 };
 
     if (id == -1) {
         printf("[player] No encontré mi PID en la lista!\n");
