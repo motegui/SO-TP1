@@ -9,32 +9,54 @@
 #include <time.h>
 
 
-void launch_player_processes(int player_qty, GameState_t *game_state,char *players[], int width, int height) {
+void launch_player_processes(int player_qty, GameState_t *game_state, char *players[], int width, int height, int pipes[][2]){
     for (int i = 0; i < player_qty; i++) {
         pid_t pid = fork();
         if (pid == 0) {
+
+            close(pipes[i][0]);
+            dup2(pipes[i][1], STDOUT_FILENO);
+            close(pipes[i][1]);
+
             char width_str[10], height_str[10];
             sprintf(width_str, "%d", width);
             sprintf(height_str, "%d", height);
+
             execl(players[i], players[i], width_str, height_str, NULL);
             perror("execl jugador");
             exit(EXIT_FAILURE);
         }
         else{
+            close(pipes[i][1]);
+
             game_state->players[i].pid = pid;
-            game_state->players[i].x = rand() % width;
-            game_state->players[i].y = rand() % height;
+            game_state->players[i].x = rand() % width; // HAY QUE MEJORARLO
+            game_state->players[i].y = rand() % height; // HAY QUE MEJORARLO
             game_state->players[i].score = 0;
             game_state->players[i].valid_moves = 0;
             game_state->players[i].invalid_moves = 0;
             game_state->players[i].blocked = false;
+
             snprintf(game_state->players[i].name, sizeof(game_state->players[i].name), "player%d", i + 1);
+
             game_state->board[game_state->players[i].y * width + game_state->players[i].x] = -(i + 1);
+
+
         }
     }
 }
 
-
+void launch_view_process(char *view_path, int width, int height) {
+    pid_t pid = fork();
+    if (pid == 0) {
+        char width_str[10], height_str[10];
+        sprintf(width_str, "%d", width);
+        sprintf(height_str, "%d", height);
+        execl(view_path, view_path, width_str, height_str, NULL);
+        perror("execl vista");
+        exit(EXIT_FAILURE);
+    }
+}
 
 int main(int argc, char *argv[]) {
     srand(time(NULL));
@@ -115,15 +137,28 @@ int main(int argc, char *argv[]) {
     game_state->player_qty = player_qty;
 
     // Crear memoria compartida de sincronización
-    shm_t *sync_shm = create_shm("/game_sync", sizeof(Sync_t), 0666, PROT_READ);
+    shm_t *sync_shm = create_shm("/game_sync", sizeof(Sync_t), 0666, PROT_READ | PROT_WRITE);
     check_shm(sync_shm, "Error al crear la memoria compartida de sincronización");
     Sync_t *sync = (Sync_t *) sync_shm->shm_p;
 
-
     // Inicializar tablero con recompensas
     for (int i = 0; i < width * height; i++) {
-        game_state->board[i] = (i % 9) + 1;  // valores 1 a 9
+        game_state->board[i] = (rand() % 9) + 1;  // valores 1 a 9
     }
+
+    //Crear los canales de comunicación para recibir solicitudes de movimientos de los jugadores
+
+    int pipes[9][2]; // pipes[i][0] -> lectura, pipes[i][1] -> escritura
+
+    for (int i = 0; i < player_qty; i++) {
+        if (pipe(pipes[i]) == -1) {
+            perror("pipe");
+            exit(EXIT_FAILURE);
+        }
+    }
+
+    // Lanzar procesos jugador (aca tambien se distribuyen los jugadores en el tablero)
+    launch_player_processes(player_qty, game_state, players, width, height, pipes);
 
     sem_init(&sync->pending_print, 1, 0);
     sem_init(&sync->print_done, 1, 0);
@@ -132,19 +167,10 @@ int main(int argc, char *argv[]) {
     sem_init(&sync->state_access_mutex, 1, 1);
     sync->players_reading = 0;
 
-    // Lanzar procesos jugador
-    launch_player_processes(player_qty, game_state, players, width, height);
-
-
     // Lanzar la vista
-    pid_t pid = fork();
-    if (pid == 0) {
-        char width_str[10], height_str[10];
-        sprintf(width_str, "%d", width);
-        sprintf(height_str, "%d", height);
-        execl("./view", "view", width_str, height_str, NULL);
-        perror("execl vista");
-        exit(EXIT_FAILURE);
+
+    if (view_path != NULL) {
+        launch_view_process(view_path, width, height);
     }
 
     // Mostrar estado inicial
