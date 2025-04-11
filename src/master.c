@@ -58,6 +58,22 @@ void launch_view_process(char *view_path, int width, int height) {
     }
 }
 
+void init_game_state(GameState_t *game_state, int width, int height, int player_qty, bool game_over) {
+    game_state->width = width;
+    game_state->height = height;
+    game_state->game_over = game_over;
+    game_state->player_qty = player_qty;
+}
+
+void init_sync_semaphores(Sync_t *sync){
+    sem_init(&sync->pending_print, 1, 0);
+    sem_init(&sync->print_done, 1, 0);
+    sem_init(&sync->master_turn_mutex, 1, 1);
+    sem_init(&sync->readers_count_mutex, 1, 1);
+    sem_init(&sync->state_access_mutex, 1, 1);
+    sync->players_reading = 0;
+}
+
 int main(int argc, char *argv[]) {
     srand(time(NULL));
 
@@ -131,10 +147,7 @@ int main(int argc, char *argv[]) {
     check_shm(state_shm, "Error al crear la memoria compartida del estado del juego");
 
     GameState_t *game_state = (GameState_t *) state_shm->shm_p;
-    game_state->width = width;
-    game_state->height = height;
-    game_state->game_over = false;
-    game_state->player_qty = player_qty;
+    init_game_state(game_state, width, height, player_qty, false);
 
     // Crear memoria compartida de sincronización
     shm_t *sync_shm = create_shm("/game_sync", sizeof(Sync_t), 0666, PROT_READ | PROT_WRITE);
@@ -160,12 +173,7 @@ int main(int argc, char *argv[]) {
     // Lanzar procesos jugador (aca tambien se distribuyen los jugadores en el tablero)
     launch_player_processes(player_qty, game_state, players, width, height, pipes);
 
-    sem_init(&sync->pending_print, 1, 0);
-    sem_init(&sync->print_done, 1, 0);
-    sem_init(&sync->master_turn_mutex, 1, 1);
-    sem_init(&sync->readers_count_mutex, 1, 1);
-    sem_init(&sync->state_access_mutex, 1, 1);
-    sync->players_reading = 0;
+    init_sync_semaphores(sync);
 
     // Lanzar la vista
 
@@ -186,8 +194,8 @@ int main(int argc, char *argv[]) {
         wait(NULL);
     }
 
-    close_shm(state_shm);
-    close_shm(sync_shm);
+    delete_shm(state_shm);
+    delete_shm(sync_shm);
 
     return 0;
 }

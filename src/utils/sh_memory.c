@@ -14,22 +14,32 @@
 shm_t *create_shm(char *name, size_t size, mode_t mode, int prot) {
     int fd = shm_open(name, O_RDWR | O_CREAT, mode);
     if (fd == -1) {
-        perror("Error: shm_open");
+        perror("[sh_memory -> create_shm] Error: shm_open");
         exit(EXIT_FAILURE);
     }
 
     if (ftruncate(fd, size) == -1) {
-        perror("Error: ftruncate");
+        perror("[sh_memory -> create_shm] Error: ftruncate");
+        close(fd);
         exit(EXIT_FAILURE);
     }
 
     void *p = mmap(NULL, size, prot, MAP_SHARED, fd, 0);
     if (p == MAP_FAILED) {
-        perror("Error: mmap");
+        perror("[sh_memory -> create_shm] Error: mmap");
+        close(fd);
         exit(EXIT_FAILURE);
     }
 
     shm_t *shm = malloc(sizeof(shm_t));
+
+    if (!shm) {
+        perror("[sh_memory -> create_shm] Error: malloc");
+        munmap(p, size);
+        close(fd);
+        exit(EXIT_FAILURE);
+    }
+
     shm->shm_p = p;
     shm->size = size;
     strncpy(shm->name, name, sizeof(shm->name));
@@ -39,33 +49,38 @@ shm_t *create_shm(char *name, size_t size, mode_t mode, int prot) {
 
 
 void delete_shm(shm_t *p){
+    if(!p){
+        return;
+    }
 
     if(sem_destroy(&p->sem) == -1){
-        perror("Error sem_destroy");
+        perror("[sh_memory -> connect_shm] Error: sem_destroy");
         exit(EXIT_FAILURE);
     }
 
-    if(munmap(p, sizeof(*p)) == -1){
-        perror("Error: munmap");
+    if(p->shm_p && munmap(p->shm_p, p->size) == -1){
+        perror("[sh_memory -> delete_shm] Error: munmap");
         exit(EXIT_FAILURE);
     }
 
     if(shm_unlink(p->name) == -1){
-        perror("Error: shm_unlink");
+        perror("[sh_memory -> delete_shm] Error: shm_unlink");
         exit(EXIT_FAILURE);
     }
+    free(p);
 }
 
 shm_t *connect_shm(const char *name, size_t size, mode_t mode, int prot) {
     int fd = shm_open(name, mode , 0);
     if (fd == -1) {
-        perror("shm_open");
+        perror("[sh_memory -> connect_shm] Error: shm_open");
         exit(EXIT_FAILURE);
     }
 
      void *shm_p = mmap(NULL, size, prot, MAP_SHARED, fd, 0);
     if (shm_p == MAP_FAILED) {
-        perror("mmap");
+        perror("[sh_memory -> connect_shm] Error: mmap");
+        close(fd);
         exit(EXIT_FAILURE);
     }
 
@@ -73,12 +88,18 @@ shm_t *connect_shm(const char *name, size_t size, mode_t mode, int prot) {
     shm->size = size;
     strncpy(shm->name, name, sizeof(shm->name));
     shm->shm_p = shm_p; 
+
+    close(fd);
     return shm;
 }
 
 void close_shm(shm_t *shm) {
+    if(!shm){
+        return;
+    }
+
     if (munmap(shm->shm_p, shm->size) == -1) {
-        perror("Error: munmap in close");
+        perror("[sh_memory -> close_shm] Error: munmap in close");
         exit(EXIT_FAILURE);
     }
     free(shm);
@@ -87,7 +108,7 @@ void close_shm(shm_t *shm) {
 
 void check_shm(shm_t * shm , char* msg){
     if(shm == NULL){
-        perror(msg);
+        fprintf(stderr, "%s\n", msg);
         exit(EXIT_FAILURE);
     }
 }
