@@ -183,6 +183,54 @@ int main(int argc, char *argv[]) {
     printf("[master] Avisé a la vista que imprima\n");
     sem_wait(&sync->print_done);
 
+    // Bucle principal del juego
+    while (!game_state->game_over) {
+        for (int i = 0; i < player_qty; i++) {
+            unsigned char dir;
+            ssize_t bytes_read = read(pipes[i][0], &dir, 1);
+            if (bytes_read > 0) {
+                printf("[master] Movimiento recibido del jugador %d: dirección %d\n", i, dir);
+
+                // Actualizar el estado del juego según el movimiento
+                Player_t *p = &game_state->players[i];
+                int dx[8] = {0, 1, 1, 1, 0, -1, -1, -1};
+                int dy[8] = {-1, -1, 0, 1, 1, 1, 0, -1};
+                int nx = p->x + dx[dir];
+                int ny = p->y + dy[dir];
+
+                if (nx >= 0 && nx < width && ny >= 0 && ny < height) {
+                    // Actualizar posición del jugador
+                    game_state->board[p->y * width + p->x] = 0; // Limpia la posición anterior
+                    p->x = nx;
+                    p->y = ny;
+                    p->score += game_state->board[ny * width + nx]; // Actualiza el puntaje
+                    game_state->board[ny * width + nx] = -(i + 1); // Marca la nueva posición
+                } else {
+                    printf("[master] Movimiento inválido del jugador %d\n", i);
+                    p->invalid_moves++;
+                }
+            }
+        }
+
+        // Notificar a la vista que imprima el estado actualizado
+        sem_post(&sync->pending_print);
+        sem_wait(&sync->print_done);
+
+        // Verificar si todos los jugadores están bloqueados
+        bool all_blocked = true;
+        for (int i = 0; i < player_qty; i++) {
+            if (!game_state->players[i].blocked) {
+                all_blocked = false;
+                break;
+            }
+        }
+        if (all_blocked) {
+            printf("[master] Todos los jugadores están bloqueados. Finalizando el juego.\n");
+            game_state->game_over = true;
+        }
+    }
+
+
     // Finalizar juego
     game_state->game_over = true;
     sem_post(&sync->pending_print); // para que vista termine su while

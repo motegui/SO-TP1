@@ -118,9 +118,11 @@ int main(int argc, char *argv[]){
         // sem_post(&sync->D);
 
         // 5. Avisar al máster que se terminó de imprimir
+       
         sem_post(&sync->print_done);
-
     }
+    
+
 
     return 0;
 }
