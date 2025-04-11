@@ -13,7 +13,6 @@ void launch_player_processes(int player_qty, GameState_t *game_state, char *play
     for (int i = 0; i < player_qty; i++) {
         pid_t pid = fork();
         if (pid == 0) {
-
             close(pipes[i][0]);
             dup2(pipes[i][1], STDOUT_FILENO);
             close(pipes[i][1]);
@@ -40,8 +39,6 @@ void launch_player_processes(int player_qty, GameState_t *game_state, char *play
             snprintf(game_state->players[i].name, sizeof(game_state->players[i].name), "player%d", i + 1);
 
             game_state->board[game_state->players[i].y * width + game_state->players[i].x] = -(i + 1);
-
-
         }
     }
 }
@@ -176,7 +173,6 @@ int main(int argc, char *argv[]) {
     init_sync_semaphores(sync);
 
     // Lanzar la vista
-
     if (view_path != NULL) {
         launch_view_process(view_path, width, height);
     }

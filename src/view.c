@@ -1,8 +1,7 @@
+
 #define BLUE   "\x1b[34m"
 #define YELLOW "\x1b[33m"
 #define RESET  "\x1b[0m"
-
-
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -105,7 +104,7 @@ int main(int argc, char *argv[]){
         printf("\n");
 
         // Imprimir tablero
-       print_table(width, height, game_state);
+        print_table(width, height, game_state);
 
         printf("\n");
         print_players_info(game_state);
