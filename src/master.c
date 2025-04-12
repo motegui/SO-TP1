@@ -186,13 +186,14 @@ int main(int argc, char *argv[]) {
     // Bucle principal del juego
     while (!game_state->game_over) {
         for (int i = 0; i < player_qty; i++) {
+            Player_t *p = &game_state->players[i];
             unsigned char dir;
             ssize_t bytes_read = read(pipes[i][0], &dir, 1);
             if (bytes_read > 0) {
                 printf("[master] Movimiento recibido del jugador %d: dirección %d\n", i, dir);
 
                 // Actualizar el estado del juego según el movimiento
-                Player_t *p = &game_state->players[i];
+                
                 int dx[8] = {0, 1, 1, 1, 0, -1, -1, -1};
                 int dy[8] = {-1, -1, 0, 1, 1, 1, 0, -1};
                 int nx = p->x + dx[dir];

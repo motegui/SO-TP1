@@ -81,20 +81,11 @@ int main(int argc, char *argv[]){
         printf("[view] Recibí señal del master!\n");
 
         // // 2. Comenzar protocolo de lectura segura
-        // printf("[view] Entrando a la lectura\n");
-        // sem_wait(&sync->E);
-        // sem_wait(&sync->D);
-        // if (++sync->players_reading == 1) {
-        //     printf("[view] Soy el primer lector, bloqueo al master\n");
-        //     sem_wait(&sync->C); // primer lector bloquea al máster
-        // }
-        // sem_post(&sync->D);
-        // sem_post(&sync->E);
-        // printf("[view] Terminé protocolo de lectura\n");
-
-        // 3. Leer e imprimir el estado del juego
-        // printf("[view] Voy a imprimir el estado del juego\n");
-
+        sem_wait(&sync->readers_count_mutex);
+        if (++sync->players_reading == 1) {
+            sem_wait(&sync->state_access_mutex); // Primer lector bloquea al máster
+        }
+        sem_post(&sync->readers_count_mutex);
 
         // Imprimir encabezado
         printf("\n   ");
@@ -112,11 +103,11 @@ int main(int argc, char *argv[]){
 
 
         // // 4. Fin de lectura segura
-        // sem_wait(&sync->D);
-        // if (--sync->players_reading == 0)
-        //     sem_post(&sync->C); // último lector libera al máster
-        // sem_post(&sync->D);
-
+        sem_wait(&sync->readers_count_mutex);
+        if (--sync->players_reading == 0) {
+            sem_post(&sync->state_access_mutex); // Último lector libera al máster
+        }
+        sem_post(&sync->readers_count_mutex);
         // 5. Avisar al máster que se terminó de imprimir
        
         sem_post(&sync->print_done);
