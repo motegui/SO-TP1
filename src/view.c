@@ -40,6 +40,25 @@ void print_players_info(GameState_t *game_state) {
     }
 }
 
+void print_semaphore_values(Sync_t *sync) {
+    int pending_print_val, print_done_val, master_turn_val, state_access_val, readers_count_val;
+
+    sem_getvalue(&sync->pending_print, &pending_print_val);
+    sem_getvalue(&sync->print_done, &print_done_val);
+    sem_getvalue(&sync->master_turn_mutex, &master_turn_val);
+    sem_getvalue(&sync->state_access_mutex, &state_access_val);
+    sem_getvalue(&sync->readers_count_mutex, &readers_count_val);
+
+    printf("Valores de los semáforos:\n");
+    printf("  pending_print: %d\n", pending_print_val);
+    printf("  print_done: %d\n", print_done_val);
+    printf("  master_turn_mutex: %d\n", master_turn_val);
+    printf("  state_access_mutex: %d\n", state_access_val);
+    printf("  readers_count_mutex: %d\n", readers_count_val);
+    printf("  players_reading: %d\n", sync->players_reading);
+    printf("--------------------------------------------------\n");
+}
+
 
 
 int main(int argc, char *argv[]){
@@ -66,18 +85,12 @@ int main(int argc, char *argv[]){
     check_shm(sync_shm, "Error al conectar a la memoria compartida de sincronización");
 
     Sync_t *sync = (Sync_t *) sync_shm->shm_p;
-     //entonces ahora a partir de aca, lo que tengo que hacer es:
-     /*
-     1) la vista tiene que esperar a que el master le avise que hay algo nuevo para mostrar (sem A)
-     2) leer el estado del juego de forma segura osea sin interferir ni con el master ni con los jugadores (sem c,d,e y var f)
-     3) imprimir el tablero y la info de los jugadores
-     4) avisar al master q termino de imprimir (sem B)
-     5) REPETIR HASTA Q game_over == true
-     */
+    
     while (!game_state->game_over) {
     // 1. Esperar aviso del máster
         printf("[view] Esperando señal del master...\n");
         sem_wait(&sync->pending_print);
+        print_semaphore_values(sync);
         printf("[view] Recibí señal del master!\n");
 
         // // 2. Comenzar protocolo de lectura segura
@@ -86,6 +99,7 @@ int main(int argc, char *argv[]){
             sem_wait(&sync->state_access_mutex); // Primer lector bloquea al máster
         }
         sem_post(&sync->readers_count_mutex);
+
 
         // Imprimir encabezado
         printf("\n   ");
@@ -111,6 +125,10 @@ int main(int argc, char *argv[]){
         // 5. Avisar al máster que se terminó de imprimir
        
         sem_post(&sync->print_done);
+
+        printf("Despues de avisar al master\n");
+        print_semaphore_values(sync);
+
     }
     
 

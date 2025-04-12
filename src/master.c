@@ -71,6 +71,15 @@ void init_sync_semaphores(Sync_t *sync){
     sync->players_reading = 0;
 }
 
+void destroy_semaphores(Sync_t *sync){
+    sem_destroy(&sync->pending_print);
+    sem_destroy(&sync->print_done);
+    sem_destroy(&sync->master_turn_mutex);
+    sem_destroy(&sync->readers_count_mutex);
+    sem_destroy(&sync->state_access_mutex);
+
+}
+
 int main(int argc, char *argv[]) {
     srand(time(NULL));
 
@@ -151,6 +160,8 @@ int main(int argc, char *argv[]) {
     check_shm(sync_shm, "Error al crear la memoria compartida de sincronización");
     Sync_t *sync = (Sync_t *) sync_shm->shm_p;
 
+    init_sync_semaphores(sync);
+
     // Inicializar tablero con recompensas
     for (int i = 0; i < width * height; i++) {
         game_state->board[i] = (rand() % 9) + 1;  // valores 1 a 9
@@ -170,7 +181,7 @@ int main(int argc, char *argv[]) {
     // Lanzar procesos jugador (aca tambien se distribuyen los jugadores en el tablero)
     launch_player_processes(player_qty, game_state, players, width, height, pipes);
 
-    init_sync_semaphores(sync);
+    
 
     // Lanzar la vista
     if (view_path != NULL) {
@@ -204,6 +215,7 @@ int main(int argc, char *argv[]) {
                     game_state->board[p->y * width + p->x] = 0; // Limpia la posición anterior
                     p->x = nx;
                     p->y = ny;
+                    p->valid_moves++;
                     p->score += game_state->board[ny * width + nx]; // Actualiza el puntaje
                     game_state->board[ny * width + nx] = -(i + 1); // Marca la nueva posición
                 } else {
@@ -217,29 +229,33 @@ int main(int argc, char *argv[]) {
         sem_post(&sync->pending_print);
         sem_wait(&sync->print_done);
 
+
         // Verificar si todos los jugadores están bloqueados
+        sem_wait(&sync->state_access_mutex); 
+
         bool all_blocked = true;
         for (int i = 0; i < player_qty; i++) {
-            if (!game_state->players[i].blocked) {
+            if (game_state->players[i].blocked == false) {
                 all_blocked = false;
                 break;
             }
         }
-        if (all_blocked) {
+        if (all_blocked == true) {
             printf("[master] Todos los jugadores están bloqueados. Finalizando el juego.\n");
             game_state->game_over = true;
         }
+        sem_post(&sync->state_access_mutex);
     }
 
 
     // Finalizar juego
-    game_state->game_over = true;
     sem_post(&sync->pending_print); // para que vista termine su while
     for (int i = 0; i < player_qty; i++) {
         wait(NULL);
     }
 
     delete_shm(state_shm);
+    destroy_semaphores(sync);
     delete_shm(sync_shm);
 
     return 0;

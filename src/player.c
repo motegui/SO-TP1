@@ -102,9 +102,11 @@ int main(int argc, char *argv[]) {
            // fprintf(stderr, "[player] Me muevo a dir %d con valor %d\n", best_dir, best_value);
         } else {
             p->blocked = true;
-            fprintf(stderr, "[player] Estoy bloqueado, no hay movimiento válido.\n");
+            fprintf(stderr, "[player] Estoy bloqueado, no hay movimiento válido.\n");   
         }
-    
+        
+
+
         // 5. Liberar los semáforos
         sem_post(&sync->state_access_mutex); // Fin de escritura
         sem_post(&sync->master_turn_mutex); // Fin del turno de escritura
