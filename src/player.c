@@ -68,7 +68,7 @@ int main(int argc, char *argv[]) {
     
 
     // 3. Bucle principal hasta que se termine el juego
-    while (!game_state->game_over) {
+    while (!game_state->players[id].blocked) {
         usleep(300000); // Simular un pequeño retraso
     
         // 1. Protocolo de escritura segura
@@ -102,7 +102,8 @@ int main(int argc, char *argv[]) {
             write(1, &dir, 1); // Enviar la dirección al máster
            // fprintf(stderr, "[player] Me muevo a dir %d con valor %d\n", best_dir, best_value);
         } else {
-            fprintf(stderr, "[player] Estoy bloqueado, no hay movimiento válido.\n");
+            fprintf(stderr, "[player%d] Estoy bloqueado, no hay movimiento válido.\n", id+1);
+            close(1);
            // p->blocked = true; // Marcarse como bloqueado
         }
 
