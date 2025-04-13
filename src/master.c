@@ -7,6 +7,7 @@
 #include <sys/wait.h>
 #include "sh_memory.h"
 #include <time.h>
+#include <sys/select.h>
 
 
 void launch_player_processes(int player_qty, GameState_t *game_state, char *players[], int width, int height, int pipes[][2]){
@@ -194,62 +195,159 @@ int main(int argc, char *argv[]) {
     printf("[master] Avisé a la vista que imprima\n");
     sem_wait(&sync->print_done);
 
+    int max_fd = 0;
+    fd_set read_fds;
+
+    for (int i = 0; i < player_qty; i++) {
+        if (pipes[i][0] > max_fd) max_fd = pipes[i][0];
+    }
+
+    int dx[8] = {0, 1, 1, 1, 0, -1, -1, -1};
+    int dy[8] = {-1, -1, 0, 1, 1, 1, 0, -1};
+
     // Bucle principal del juego
     while (!game_state->game_over) {
+        FD_ZERO(&read_fds);
         for (int i = 0; i < player_qty; i++) {
-            Player_t *p = &game_state->players[i];
-            unsigned char dir;
-            ssize_t bytes_read = read(pipes[i][0], &dir, 1);
-            if (bytes_read > 0) {
-                printf("[master] Movimiento recibido del jugador %d: dirección %d\n", i, dir);
+            FD_SET(pipes[i][0], &read_fds);
+        }
 
-                // Actualizar el estado del juego según el movimiento
-                
-                int dx[8] = {0, 1, 1, 1, 0, -1, -1, -1};
-                int dy[8] = {-1, -1, 0, 1, 1, 1, 0, -1};
-                int nx = p->x + dx[dir];
-                int ny = p->y + dy[dir];
+        int ready = select(max_fd + 1, &read_fds, NULL, NULL, NULL);
+        if (ready == -1) {
+            perror("select");
+            break;
+        }
 
-                if (nx >= 0 && nx < width && ny >= 0 && ny < height) {
-                    // Actualizar posición del jugador
-                    game_state->board[p->y * width + p->x] = 0; // Limpia la posición anterior
-                    p->x = nx;
-                    p->y = ny;
-                    p->valid_moves++;
-                    p->score += game_state->board[ny * width + nx]; // Actualiza el puntaje
-                    game_state->board[ny * width + nx] = -(i + 1); // Marca la nueva posición
-                } else {
-                    printf("[master] Movimiento inválido del jugador %d\n", i);
-                    p->invalid_moves++;
+        for (int i = 0; i < player_qty; i++) {
+            if (FD_ISSET(pipes[i][0], &read_fds)) {
+                Player_t *p = &game_state->players[i];
+                unsigned char dir;
+                ssize_t bytes_read = read(pipes[i][0], &dir, 1);
+                if (bytes_read <= 0) {
+                    game_state->players[i].blocked = true;
+                    continue;
                 }
+                int valido = 0;
+                if (dir > 7) {
+                    p->invalid_moves++;
+                }else {
+                    printf("[master] Movimiento recibido del jugador %d: dirección %d\n", i, dir);
+
+                    // Actualizar el estado del juego según el movimiento
+
+                    int nx = p->x + dx[dir];
+                    int ny = p->y + dy[dir];
+
+                    if (nx < 0 || ny < 0 || nx >= game_state->width || ny >= game_state->height) {
+                        game_state->players[i].invalid_moves++;
+                    } else {
+                        int pos = ny * game_state->width + nx;
+                        int cell = game_state->board[pos];
+        
+                        if (cell >= 1 && cell <= 9) {
+                            game_state->board[p->y * game_state->width + p->x] = -(i + 1);
+                            game_state->players[i].x = nx;
+                            game_state->players[i].y = ny;
+                            game_state->players[i].score += cell;
+                            game_state->board[pos] = -(i + 1);
+                            game_state->players[i].valid_moves++;
+                            printf("[master] Movimiento válido: player %d a (%d, %d)\n", i, nx, ny);
+                            valido = 1;
+                        } else {
+                            game_state->players[i].invalid_moves++;
+                            printf("[master] Movimiento inválido: player %d intentó (%d, %d)\n", i, nx, ny);
+                        }
+                    }
+                }
+                sem_post(&sync->pending_print);
+                sem_wait(&sync->print_done);
+        
             }
         }
 
-        // Notificar a la vista que imprima el estado actualizado
-        sem_post(&sync->pending_print);
-        sem_wait(&sync->print_done);
+        bool any_active = false;
 
+        for(int i = 0; i<player_qty; i++){
+            if(game_state->players[i].blocked){
+                continue;
+            }
+            
+            int x = game_state->players[i].x;
+            int y = game_state->players[i].y;
 
-        // Verificar si todos los jugadores están bloqueados
-        sem_wait(&sync->state_access_mutex); 
+            for (int d = 0; d < 8; d++) {
+                int nx = x + dx[d];
+                int ny = y + dy[d];
 
-        bool all_blocked = true;
-        for (int i = 0; i < player_qty; i++) {
-            if (game_state->players[i].blocked == false) {
-                all_blocked = false;
+                if (nx < 0 || ny < 0 || nx >= game_state->width || ny >= game_state->height){
+                    continue;
+                }
+                int pos = ny * game_state->width + nx;
+                int cell = game_state->board[pos];
+
+                if (cell >= 1 && cell <= 9) {
+                    any_active = true;
+                    break;
+                }
+            }
+            if(any_active){
                 break;
             }
         }
-        if (all_blocked == true) {
-            printf("[master] Todos los jugadores están bloqueados. Finalizando el juego.\n");
+
+        if(!any_active){
+            printf("[master] Todos los jugadores están bloqueados. Fin del juego.\n");
             game_state->game_over = true;
+            break;
         }
-        sem_post(&sync->state_access_mutex);
+
+        usleep(delay * 1000);
     }
 
+    int winner = -1;
+    bool tie = false;
+
+    for (int i = 0; i < player_qty; i++){
+        printf("Jugador %s: puntaje=%u, válidos=%u, inválidos=%u\n",
+            game_state->players[i].name,
+            game_state->players[i].score,
+            game_state->players[i].valid_moves,
+            game_state->players[i].invalid_moves);
+        if(winner = -1){
+            winner = i;
+        }else{
+            Player_t *p = &game_state->players[i];
+            Player_t *g = &game_state->players[winner];
+            
+            if(p->score > g->score){
+                winner = i;
+                tie = false;
+            }else if( p -> score == g -> score){
+                if(p->valid_moves < g ->valid_moves){
+                    winner = i;
+                    tie = false;
+                }else if(p->valid_moves == g->valid_moves){
+                    if(p->invalid_moves < g->invalid_moves){
+                        winner = i;
+                        tie = false;
+                    }else if(p->invalid_moves == g->invalid_moves){
+                        tie = true;
+                    }
+                }
+            }
+        }
+    }
+
+    if (tie) {
+        printf("Resultado: ¡Empate!\n");
+    } else {
+        printf("Ganador: %s 🏆\n", game_state->players[winner].name);
+    }
 
     // Finalizar juego
+    game_state->game_over = true;
     sem_post(&sync->pending_print); // para que vista termine su while
+
     for (int i = 0; i < player_qty; i++) {
         wait(NULL);
     }

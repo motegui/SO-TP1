@@ -101,8 +101,9 @@ int main(int argc, char *argv[]) {
             write(1, &dir, 1); // Enviar la dirección al máster
            // fprintf(stderr, "[player] Me muevo a dir %d con valor %d\n", best_dir, best_value);
         } else {
-            p->blocked = true;
-            fprintf(stderr, "[player] Estoy bloqueado, no hay movimiento válido.\n");   
+            fprintf(stderr, "[player] Estoy bloqueado, no hay movimiento válido.\n");
+            close(1);
+            exit(0);
         }
         
 
