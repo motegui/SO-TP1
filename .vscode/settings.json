@@ -3,6 +3,7 @@
         "types.h": "c",
         "stdio.h": "c",
         "stdbool.h": "c",
-        "type_traits": "c"
+        "type_traits": "c",
+        "master_functions.h": "c"
     }
 }

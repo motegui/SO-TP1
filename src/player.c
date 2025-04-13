@@ -1,27 +1,28 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <stdbool.h>
-#include <string.h>
-#include "sh_memory.h"
+// #include <stdio.h>
+// #include <stdlib.h>
+// #include <unistd.h>
+// #include <stdbool.h>
+// #include <string.h>
+// #include "sh_memory.h"
 
+#include "player_functions.h"
 
 // Función para obtener el índice del jugador según su pid
-int get_player_id(GameState_t *game_state) {
-    pid_t my_pid = getpid();
-    for (int i = 0; i < game_state->player_qty; i++) {
-        if (game_state->players[i].pid == my_pid) {
-            return i;
-        }
-    }
-    return -1; // no encontrado
-}
+// int get_player_id(GameState_t *game_state) {
+//     pid_t my_pid = getpid();
+//     for (int i = 0; i < game_state->player_qty; i++) {
+//         if (game_state->players[i].pid == my_pid) {
+//             return i;
+//         }
+//     }
+//     return -1; // no encontrado
+// }
 
-bool hit_border(int x, int y, int dx, int dy, int width, int height) {
-    int nx = x + dx;
-    int ny = y + dy;
-    return (nx <= 0 || nx >= width || ny <= 0 || ny >= height);
-}
+// bool hit_border(int x, int y, int dx, int dy, int width, int height) {
+//     int nx = x + dx;
+//     int ny = y + dy;
+//     return (nx <= 0 || nx >= width || ny <= 0 || ny >= height);
+// }
 
 int main(int argc, char *argv[]) {
     printf("[player] Hola! Soy un jugador. Me pasaron: %s %s\n", argv[1], argv[2]);
@@ -104,15 +105,12 @@ int main(int argc, char *argv[]) {
             fprintf(stderr, "[player] Estoy bloqueado, no hay movimiento válido.\n");
            // p->blocked = true; // Marcarse como bloqueado
         }
-        
-
 
         // 5. Liberar los semáforos
         sem_post(&sync->state_access_mutex); // Fin de escritura
         sem_post(&sync->master_turn_mutex); // Fin del turno de escritura
     }
     
-    fprintf(stderr, "[player] El juego terminó. Salgo!\n");
     
     //Liberar recursos
     close_shm(state_shm);
