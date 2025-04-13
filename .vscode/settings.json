@@ -4,6 +4,8 @@
         "stdio.h": "c",
         "stdbool.h": "c",
         "type_traits": "c",
-        "master_functions.h": "c"
+        "master_functions.h": "c",
+        "unistd.h": "c",
+        "player_functions.h": "c"
     }
 }

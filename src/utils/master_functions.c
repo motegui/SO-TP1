@@ -1,4 +1,5 @@
 #include "master_functions.h"
+#include <unistd.h>
 
 
 void launch_player_processes(int player_qty, GameState_t *game_state, char *players[], int width, int height, int pipes[][2]){
@@ -72,7 +73,7 @@ void destroy_semaphores(Sync_t *sync){
 
 }
 
-void read_players_moves(int pipes[][2], GameState_t *game_state, Sync_t *sync, int dx[], int dy[], int player_qty) {
+void read_players_moves(int pipes[][2], GameState_t *game_state, int dx[], int dy[], int player_qty) {
     fd_set read_fds;
     FD_ZERO(&read_fds);
 

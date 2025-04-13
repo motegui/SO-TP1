@@ -1,5 +1,5 @@
 CC = gcc
-CFLAGS = -Wall -Wextra -std=c99 -g -Isrc/include
+CFLAGS = -Wall -Wextra -std=c99 -g -Isrc/include 
 LDFLAGS = -lrt -pthread
 
 all: master player view

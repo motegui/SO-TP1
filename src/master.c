@@ -1,4 +1,6 @@
 #include "master_functions.h"
+#include <unistd.h>
+
 
 int main(int argc, char *argv[]) {
     srand(time(NULL));
@@ -79,7 +81,6 @@ int main(int argc, char *argv[]) {
     shm_t *sync_shm = create_shm("/game_sync", sizeof(Sync_t), 0666, PROT_READ | PROT_WRITE);
     check_shm(sync_shm, "Error al crear la memoria compartida de sincronización");
     Sync_t *sync = (Sync_t *) sync_shm->shm_p;
-
     init_sync_semaphores(sync);
 
     // Inicializar tablero con recompensas
@@ -108,11 +109,11 @@ int main(int argc, char *argv[]) {
     // Mostrar estado inicial
     sleep(1);
     sem_post(&sync->pending_print);
-    printf("[master] Avisé a la vista que imprima\n");
+    //printf("[master] Avisé a la vista que imprima\n");
     sem_wait(&sync->print_done);
 
     int max_fd = 0;
-    fd_set read_fds;
+    //fd_set read_fds;
 
     for (int i = 0; i < player_qty; i++) {
         if (pipes[i][0] > max_fd) max_fd = pipes[i][0];
@@ -123,16 +124,13 @@ int main(int argc, char *argv[]) {
 
     // Bucle principal del juego
     while (!game_state->game_over) {
-        // Leer movimientos de los jugadores
-        read_players_moves(pipes, game_state, sync, dx, dy, player_qty);
+        read_players_moves(pipes, game_state, dx, dy, player_qty);
     
         // Notificar a la vista
         sem_post(&sync->pending_print);
         sem_wait(&sync->print_done);
     
-        // Verificar si el juego debe finalizar
         if (check_all_players_blocked(game_state, player_qty)) {
-            printf("[master] Todos los jugadores están bloqueados. Fin del juego.\n");
             game_state->game_over = true;
             break;
         }
@@ -142,9 +140,8 @@ int main(int argc, char *argv[]) {
 
     determine_winner(game_state, player_qty);
 
-    // Finalizar juego
     game_state->game_over = true;
-    sem_post(&sync->pending_print); // para que vista termine su while
+    sem_post(&sync->pending_print); 
 
     for (int i = 0; i < player_qty; i++) {
         wait(NULL);

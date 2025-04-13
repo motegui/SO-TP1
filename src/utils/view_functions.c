@@ -1,5 +1,5 @@
 #include "view_functions.h"
-
+#include <unistd.h>
 
 void print_table(int width, int height, GameState_t *game_state) {
     for (int y = 0; y < height; y++) {

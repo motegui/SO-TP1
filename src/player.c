@@ -1,30 +1,8 @@
-// #include <stdio.h>
-// #include <stdlib.h>
-// #include <unistd.h>
-// #include <stdbool.h>
-// #include <string.h>
-// #include "sh_memory.h"
-
+#include <unistd.h>
 #include "player_functions.h"
 
-// Función para obtener el índice del jugador según su pid
-// int get_player_id(GameState_t *game_state) {
-//     pid_t my_pid = getpid();
-//     for (int i = 0; i < game_state->player_qty; i++) {
-//         if (game_state->players[i].pid == my_pid) {
-//             return i;
-//         }
-//     }
-//     return -1; // no encontrado
-// }
-
-// bool hit_border(int x, int y, int dx, int dy, int width, int height) {
-//     int nx = x + dx;
-//     int ny = y + dy;
-//     return (nx <= 0 || nx >= width || ny <= 0 || ny >= height);
-// }
-
 int main(int argc, char *argv[]) {
+    (void) argc; // evitar warning de variable no usada
     printf("[player] Hola! Soy un jugador. Me pasaron: %s %s\n", argv[1], argv[2]);
 
     // 1. Conexión a memoria compartida
@@ -58,13 +36,6 @@ int main(int argc, char *argv[]) {
     sem_wait(&sync->state_access_mutex);
     printf("[player] Soy el jugador #%d (PID %d)\n", id, getpid());
     sem_post(&sync->state_access_mutex);
-
-
-    int best_dir = 1;
-
-    int dir_vec[3] = {-1, 0, 1};
-    int dir_x_idx = 2; 
-    int dir_y_idx = 0; 
     
 
     // 3. Bucle principal hasta que se termine el juego
@@ -102,9 +73,9 @@ int main(int argc, char *argv[]) {
             write(1, &dir, 1); // Enviar la dirección al máster
            // fprintf(stderr, "[player] Me muevo a dir %d con valor %d\n", best_dir, best_value);
         } else {
-            fprintf(stderr, "[player%d] Estoy bloqueado, no hay movimiento válido.\n", id+1);
+            //fprintf(stderr, "[player%d] Estoy bloqueado, no hay movimiento válido.\n", id+1);
             close(1);
-           // p->blocked = true; // Marcarse como bloqueado
+            //p->blocked = true; // Marcarse como bloqueado
         }
 
         // 5. Liberar los semáforos
