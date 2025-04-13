@@ -102,8 +102,7 @@ int main(int argc, char *argv[]) {
            // fprintf(stderr, "[player] Me muevo a dir %d con valor %d\n", best_dir, best_value);
         } else {
             fprintf(stderr, "[player] Estoy bloqueado, no hay movimiento válido.\n");
-            close(1);
-            exit(0);
+           // p->blocked = true; // Marcarse como bloqueado
         }
         
 
