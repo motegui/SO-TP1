@@ -30,8 +30,11 @@ int main(int argc, char *argv[]){
     while (!game_state->game_over) {
     sem_wait(&sync->pending_print);
 
-    // 🔁 LIMPIAR ANTES DE CUALQUIER PRINT
-    printf("\033[H\033[J");  // Cursor al tope + limpiar pantalla
+if (!game_state->game_over) {
+   printf("\033[2J\033[H");
+ // solo limpia si no terminó
+}
+
 
     // Protocolo de lectura segura
     sem_wait(&sync->readers_count_mutex);

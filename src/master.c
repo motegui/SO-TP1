@@ -111,7 +111,6 @@ int main(int argc, char *argv[]) {
     sem_post(&sync->pending_print);
     //printf("[master] Avisé a la vista que imprima\n");
     sem_wait(&sync->print_done);
-
     int max_fd = 0;
     //fd_set read_fds;
 
@@ -138,10 +137,11 @@ int main(int argc, char *argv[]) {
         usleep(delay * 1000); // Esperar antes del siguiente turno
     }
 
-    determine_winner(game_state, player_qty);
-
     game_state->game_over = true;
-    sem_post(&sync->pending_print); 
+    sem_post(&sync->pending_print); // Aviso final para que vista haga último print
+    sem_wait(&sync->print_done);    // Esperá a que termine
+
+    determine_winner(game_state, player_qty); // Ahora imprimís el ganador
 
     for (int i = 0; i < player_qty; i++) {
         wait(NULL);
