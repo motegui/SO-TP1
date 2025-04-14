@@ -28,49 +28,40 @@ int main(int argc, char *argv[]){
     Sync_t *sync = (Sync_t *) sync_shm->shm_p;
     
     while (!game_state->game_over) {
-    // 1. Esperar aviso del máster
-        //printf("[view] Esperando señal del master...\n");
-        sem_wait(&sync->pending_print);
-        //print_semaphore_values(sync);
-        //printf("[view] Recibí señal del master!\n");
+    sem_wait(&sync->pending_print);
 
-        // // 2. Comenzar protocolo de lectura segura
-        sem_wait(&sync->readers_count_mutex);
-        if (++sync->players_reading == 1) {
-            sem_wait(&sync->state_access_mutex); // Primer lector bloquea al máster
-        }
-        sem_post(&sync->readers_count_mutex);
+    // 🔁 LIMPIAR ANTES DE CUALQUIER PRINT
+    printf("\033[H\033[J");  // Cursor al tope + limpiar pantalla
 
-
-        // Imprimir encabezado
-        printf("\n   ");
-        for (int x = 0; x < width; x++) {
-            printf("%4d", x);
-        }
-        printf("\n");
-
-        // Imprimir tablero
-        print_table(width, height, game_state);
-
-        printf("\n");
-        print_players_info(game_state);
-        printf("\n");
-
-
-        // // 4. Fin de lectura segura
-        sem_wait(&sync->readers_count_mutex);
-        if (--sync->players_reading == 0) {
-            sem_post(&sync->state_access_mutex); // Último lector libera al máster
-        }
-        sem_post(&sync->readers_count_mutex);
-        // 5. Avisar al máster que se terminó de imprimir
-       
-        sem_post(&sync->print_done);
-
-        // printf("Despues de avisar al master\n");
-      //  print_semaphore_values(sync);
-
+    // Protocolo de lectura segura
+    sem_wait(&sync->readers_count_mutex);
+    if (++sync->players_reading == 1) {
+        sem_wait(&sync->state_access_mutex); // Primer lector bloquea al máster
     }
+    sem_post(&sync->readers_count_mutex);
+
+    // Imprimir encabezado
+    printf("\n   ");
+    for (int x = 0; x < width; x++) {
+        printf("%4d", x);
+    }
+    printf("\n");
+
+    print_table(width, height, game_state);
+    printf("\n");
+    print_players_info(game_state);
+    printf("\n");
+
+    // Fin de lectura segura
+    sem_wait(&sync->readers_count_mutex);
+    if (--sync->players_reading == 0) {
+        sem_post(&sync->state_access_mutex);
+    }
+    sem_post(&sync->readers_count_mutex);
+
+    sem_post(&sync->print_done);
+}
+
     
     close_shm(state_shm);
     close_shm(sync_shm);
