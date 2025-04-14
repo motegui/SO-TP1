@@ -100,7 +100,7 @@ void destroy_semaphores(Sync_t *sync){
 
 }
 
-void read_players_moves(int pipes[][2], GameState_t *game_state, int dx[], int dy[], int player_qty) {
+bool read_players_moves(int pipes[][2], GameState_t *game_state, int dx[], int dy[], int player_qty) {
     static int current_player = 0;
 
     fd_set read_fds;
@@ -111,7 +111,12 @@ void read_players_moves(int pipes[][2], GameState_t *game_state, int dx[], int d
     int ready = select(max_fd + 1, &read_fds, NULL, NULL, NULL);
     if (ready == -1) {
         perror("select");
-        return;
+        return false;
+    }
+
+    if (ready == 0) {
+        // no hay movimiento
+        return false;
     }
 
     if (FD_ISSET(pipes[current_player][0], &read_fds)) {
@@ -121,7 +126,7 @@ void read_players_moves(int pipes[][2], GameState_t *game_state, int dx[], int d
         if (bytes_read <= 0) {
             p->blocked = true;
             current_player = (current_player + 1) % player_qty;
-            return;
+            return false;
         }
 
         if (dir > 7) {
@@ -143,6 +148,8 @@ void read_players_moves(int pipes[][2], GameState_t *game_state, int dx[], int d
                     p->score += cell;
                     game_state->board[pos] = -(current_player + 1); // Marca la nueva posición
                     p->valid_moves++;
+                    current_player = (current_player + 1) % player_qty;
+                    return true; // hubo movimiento válido
                 } else {
                     p->invalid_moves++;
                 }
@@ -151,7 +158,7 @@ void read_players_moves(int pipes[][2], GameState_t *game_state, int dx[], int d
         
     }
     current_player = (current_player + 1) % player_qty;
-
+    return false;
 }
 
 void determine_winner(GameState_t *game_state, int player_qty) {
@@ -180,10 +187,29 @@ void determine_winner(GameState_t *game_state, int player_qty) {
 }
 
 bool check_all_players_blocked(GameState_t *game_state, int player_qty) {
+    int dx[8] = {0, 1, 1, 1, 0, -1, -1, -1};
+    int dy[8] = {-1, -1, 0, 1, 1, 1, 0, -1};
+
     for (int i = 0; i < player_qty; i++) {
-        if (!game_state->players[i].blocked) {
-            return false; // Al menos un jugador puede moverse
+        if (game_state->players[i].blocked) continue;
+
+        int x = game_state->players[i].x;
+        int y = game_state->players[i].y;
+
+        for (int d = 0; d < 8; d++) {
+            int nx = x + dx[d];
+            int ny = y + dy[d];
+
+            if (nx < 0 || ny < 0 || nx >= game_state->width || ny >= game_state->height) continue;
+
+            int pos = ny * game_state->width + nx;
+            int cell = game_state->board[pos];
+
+            if (cell >= 1 && cell <= 9) {
+                return false;  // este jugador puede moverse
+            }
         }
     }
-    return true; // Todos los jugadores están bloqueados
+
+    return true;  // ningún jugador tiene movimientos válidos
 }

@@ -121,15 +121,27 @@ int main(int argc, char *argv[]) {
     int dx[8] = {0, 1, 1, 1, 0, -1, -1, -1};
     int dy[8] = {-1, -1, 0, 1, 1, 1, 0, -1};
 
+    time_t last_valid_move_time = time(NULL);
+
     // Bucle principal del juego
     while (!game_state->game_over) {
-        read_players_moves(pipes, game_state, dx, dy, player_qty);
+        bool player_moves = read_players_moves(pipes, game_state, dx, dy, player_qty);
     
+        if(player_moves){
+            last_valid_move_time = time(NULL);
+        } 
+
         // Notificar a la vista
         sem_post(&sync->pending_print);
         sem_wait(&sync->print_done);
     
         if (check_all_players_blocked(game_state, player_qty)) {
+            game_state->game_over = true;
+            break;
+        }
+
+        if (difftime(time(NULL), last_valid_move_time) >= timeout) {
+            printf("[master] Timeout alcanzado (%d seg sin movimientos válidos). Fin del juego.\n", timeout);
             game_state->game_over = true;
             break;
         }
