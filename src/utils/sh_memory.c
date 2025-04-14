@@ -31,6 +31,7 @@ shm_t *create_shm(char *name, size_t size, mode_t mode, int prot) {
         exit(EXIT_FAILURE);
     }
 
+    close(fd);
     shm_t *shm = malloc(sizeof(shm_t));
 
     if (!shm) {

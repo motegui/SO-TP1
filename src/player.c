@@ -85,6 +85,7 @@ int main(int argc, char *argv[]) {
     
     
     //Liberar recursos
+    close(1); //cierro pipe
     close_shm(state_shm);
     close_shm(sync_shm);
 

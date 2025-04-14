@@ -147,6 +147,15 @@ int main(int argc, char *argv[]) {
         wait(NULL);
     }
 
+    for (int i = 0; i < player_qty; i++) {
+        close(pipes[i][0]); // Cerrar extremo de lectura
+        close(pipes[i][1]); // Cerrar extremo de escritura
+    }
+
+    if(view_path) {
+        free(view_path);
+    }
+
     delete_shm(state_shm);
     destroy_semaphores(sync);
     delete_shm(sync_shm);

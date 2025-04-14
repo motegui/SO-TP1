@@ -1,6 +1,4 @@
 #include "master_functions.h"
-#include <unistd.h>
-
 
 void launch_player_processes(int player_qty, GameState_t *game_state, char *players[], int width, int height, int pipes[][2]){
     for (int i = 0; i < player_qty; i++) {

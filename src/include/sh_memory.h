@@ -6,9 +6,10 @@
 #include <stddef.h>
 #include <sys/mman.h>
 #include <fcntl.h>
+#include <unistd.h>
 
 typedef struct {
-    char name[16]; // Nombre del jugador
+    char name[32]; // Nombre del jugador
     unsigned int score; // Puntaje
     unsigned int invalid_moves; // Cantidad de solicitudes de movimientos inválidas realizadas
     unsigned int valid_moves; // Cantidad de solicitudes de movimientos válidas realizadas
