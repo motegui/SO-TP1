@@ -151,13 +151,9 @@ int main(int argc, char *argv[]) {
 
     game_state->game_over = true;
     sem_post(&sync->pending_print); // Aviso final para que vista haga último print
+
     sem_wait(&sync->print_done);    // Esperá a que termine
-
     determine_winner(game_state, player_qty); // Ahora imprimís el ganador
-
-    for (int i = 0; i < player_qty; i++) {
-        wait(NULL);
-    }
 
     for (int i = 0; i < player_qty; i++) {
         close(pipes[i][0]); // Cerrar extremo de lectura
