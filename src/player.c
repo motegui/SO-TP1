@@ -3,7 +3,6 @@
 
 int main(int argc, char *argv[]) {
     (void) argc;
-    printf("[player] Hola! Soy un jugador. Me pasaron: %s %s\n", argv[1], argv[2]);
 
     int width = atoi(argv[1]);
     int height = atoi(argv[2]);
@@ -32,7 +31,6 @@ int main(int argc, char *argv[]) {
     }
 
     sem_wait(&sync->state_access_mutex);
-    printf("[player] Soy el jugador #%d (PID %d)\n", id, getpid());
     sem_post(&sync->state_access_mutex);
     
 
