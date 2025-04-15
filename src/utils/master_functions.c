@@ -20,8 +20,6 @@ void launch_player_processes(int player_qty, GameState_t *game_state, char *play
             close(pipes[i][1]);
 
             game_state->players[i].pid = pid;
-            // game_state->players[i].x = rand() % width; // HAY QUE MEJORARLO
-            // game_state->players[i].y = rand() % height; // HAY QUE MEJORARLO
             game_state->players[i].score = 0;
             game_state->players[i].valid_moves = 0;
             game_state->players[i].invalid_moves = 0;
@@ -29,7 +27,6 @@ void launch_player_processes(int player_qty, GameState_t *game_state, char *play
 
             snprintf(game_state->players[i].name, sizeof(game_state->players[i].name), "player%d", i + 1);
 
-            // game_state->board[game_state->players[i].y * width + game_state->players[i].x] = -(i + 1);
         }
     }
     distribute_players(game_state, width, height, player_qty);
@@ -56,7 +53,7 @@ void init_game_state(GameState_t *game_state, int width, int height, int player_
 }
 void distribute_players(GameState_t *game_state, int width, int height, int player_qty) {
     int rows = (int)sqrt(player_qty);
-    int cols = (player_qty + rows - 1) / rows; // redondeo hacia arriba
+    int cols = (player_qty + rows - 1) / rows;
 
     int spacing_x = width / cols;
     int spacing_y = height / rows;
@@ -75,7 +72,7 @@ void distribute_players(GameState_t *game_state, int width, int height, int play
             game_state->players[player].blocked = false;
             snprintf(game_state->players[player].name, sizeof(game_state->players[player].name), "player%d", player + 1);
 
-            game_state->board[y * width + x] = -(player + 1); // Marcar en el tablero
+            game_state->board[y * width + x] = -(player + 1);
             player++;
         }
     }
@@ -115,7 +112,6 @@ bool read_players_moves(int pipes[][2], GameState_t *game_state, int dx[], int d
     }
 
     if (ready == 0) {
-        // no hay movimiento
         return false;
     }
 
@@ -142,14 +138,14 @@ bool read_players_moves(int pipes[][2], GameState_t *game_state, int dx[], int d
                 int cell = game_state->board[pos];
 
                 if (cell >= 1 && cell <= 9) {
-                    game_state->board[p->y * game_state->width + p->x] = 0; // Limpia la posición anterior
+                    game_state->board[p->y * game_state->width + p->x] = 0;
                     p->x = nx;
                     p->y = ny;
                     p->score += cell;
-                    game_state->board[pos] = -(current_player + 1); // Marca la nueva posición
+                    game_state->board[pos] = -(current_player + 1);
                     p->valid_moves++;
                     current_player = (current_player + 1) % player_qty;
-                    return true; // hubo movimiento válido
+                    return true;
                 } else {
                     p->invalid_moves++;
                 }
@@ -206,10 +202,10 @@ bool check_all_players_blocked(GameState_t *game_state, int player_qty) {
             int cell = game_state->board[pos];
 
             if (cell >= 1 && cell <= 9) {
-                return false;  // este jugador puede moverse
+                return false;
             }
         }
     }
 
-    return true;  // ningún jugador tiene movimientos válidos
+    return true;
 }

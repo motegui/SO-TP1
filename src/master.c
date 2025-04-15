@@ -12,8 +12,6 @@ int main(int argc, char *argv[]) {
     int timeout = 10;
     unsigned int seed = time(NULL);
 
-
-    // Parseo de argumentos para obtener paths de jugadores
     int opt;
     char *view_path = NULL;
     while ((opt = getopt(argc, argv, "w:h:d:t:s:v:p:")) != -1) {
@@ -70,20 +68,17 @@ int main(int argc, char *argv[]) {
     size_t board_size = width * height * sizeof(int);
     size_t game_state_size = sizeof(GameState_t) + board_size;
 
-    // Crear memoria compartida de estado
     shm_t *state_shm = create_shm("/game_state", game_state_size, 0644, PROT_READ | PROT_WRITE );
     check_shm(state_shm, "Error al crear la memoria compartida del estado del juego");
 
     GameState_t *game_state = (GameState_t *) state_shm->shm_p;
     init_game_state(game_state, width, height, player_qty, false);
 
-    // Crear memoria compartida de sincronización
     shm_t *sync_shm = create_shm("/game_sync", sizeof(Sync_t), 0666, PROT_READ | PROT_WRITE);
     check_shm(sync_shm, "Error al crear la memoria compartida de sincronización");
     Sync_t *sync = (Sync_t *) sync_shm->shm_p;
     init_sync_semaphores(sync);
 
-    // Inicializar tablero con recompensas
     for (int i = 0; i < width * height; i++) {
         game_state->board[i] = (rand() % 9) + 1;  // valores 1 a 9
     }
@@ -98,21 +93,16 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    // Lanzar procesos jugador (aca tambien se distribuyen los jugadores en el tablero)
     launch_player_processes(player_qty, game_state, players, width, height, pipes);
 
-    // Lanzar la vista
     if (view_path != NULL) {
         launch_view_process(view_path, width, height);
     }
 
-    // Mostrar estado inicial
     sleep(1);
     sem_post(&sync->pending_print);
-    //printf("[master] Avisé a la vista que imprima\n");
     sem_wait(&sync->print_done);
     int max_fd = 0;
-    //fd_set read_fds;
 
     for (int i = 0; i < player_qty; i++) {
         if (pipes[i][0] > max_fd) max_fd = pipes[i][0];
@@ -123,7 +113,6 @@ int main(int argc, char *argv[]) {
 
     time_t last_valid_move_time = time(NULL);
 
-    // Bucle principal del juego
     while (!game_state->game_over) {
         bool player_moves = read_players_moves(pipes, game_state, dx, dy, player_qty);
     
@@ -131,7 +120,6 @@ int main(int argc, char *argv[]) {
             last_valid_move_time = time(NULL);
         } 
 
-        // Notificar a la vista
         sem_post(&sync->pending_print);
         sem_wait(&sync->print_done);
     
@@ -146,18 +134,18 @@ int main(int argc, char *argv[]) {
             break;
         }
     
-        usleep(delay * 1000); // Esperar antes del siguiente turno
+        usleep(delay * 1000);
     }
 
     game_state->game_over = true;
-    sem_post(&sync->pending_print); // Aviso final para que vista haga último print
+    sem_post(&sync->pending_print);
 
-    sem_wait(&sync->print_done);    // Esperá a que termine
-    determine_winner(game_state, player_qty); // Ahora imprimís el ganador
+    sem_wait(&sync->print_done);
+    determine_winner(game_state, player_qty);
 
     for (int i = 0; i < player_qty; i++) {
-        close(pipes[i][0]); // Cerrar extremo de lectura
-        close(pipes[i][1]); // Cerrar extremo de escritura
+        close(pipes[i][0]);
+        close(pipes[i][1]);
     }
 
     if(view_path) {

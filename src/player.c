@@ -2,10 +2,9 @@
 #include "player_functions.h"
 
 int main(int argc, char *argv[]) {
-    (void) argc; // evitar warning de variable no usada
+    (void) argc;
     printf("[player] Hola! Soy un jugador. Me pasaron: %s %s\n", argv[1], argv[2]);
 
-    // 1. Conexión a memoria compartida
     int width = atoi(argv[1]);
     int height = atoi(argv[2]);
     size_t board_size = width * height * sizeof(int);
@@ -22,7 +21,6 @@ int main(int argc, char *argv[]) {
 
     Sync_t *sync = (Sync_t *) sync_shm->shm_p;
 
-    // 2. Identificarme en el array de jugadores
     int id = get_player_id(game_state);
   
     int dx[8] = {  0,  1,  1,  1,  0, -1, -1, -1 };
@@ -38,20 +36,16 @@ int main(int argc, char *argv[]) {
     sem_post(&sync->state_access_mutex);
     
 
-    // 3. Bucle principal hasta que se termine el juego
     while (!game_state->players[id].blocked) {
-        usleep(300000); // Simular un pequeño retraso
+        usleep(300000);
     
-        // 1. Protocolo de escritura segura
-        sem_wait(&sync->master_turn_mutex); // Turno de escritura
-        sem_wait(&sync->state_access_mutex); // Exclusión mutua total
+        sem_wait(&sync->master_turn_mutex);
+        sem_wait(&sync->state_access_mutex);
     
-        // 2. Obtener la posición actual del jugador
         Player_t *p = &game_state->players[id];
         int x = p->x;
         int y = p->y;
     
-        // 3. Buscar el mejor movimiento
         int best_value = -1;
         int best_dir = -1;
         for (int d = 0; d < 8; d++) {
@@ -67,25 +61,20 @@ int main(int argc, char *argv[]) {
             }
         }
     
-        // 4. Realizar el movimiento o marcarse como bloqueado
         if (best_value > 0 && best_dir != -1) {
             unsigned char dir = (unsigned char) best_dir;
-            write(1, &dir, 1); // Enviar la dirección al máster
-           // fprintf(stderr, "[player] Me muevo a dir %d con valor %d\n", best_dir, best_value);
+            write(1, &dir, 1);
         } else {
-            //fprintf(stderr, "[player%d] Estoy bloqueado, no hay movimiento válido.\n", id+1);
             close(1);
-            //p->blocked = true; // Marcarse como bloqueado
+            sem_post(&sync->state_access_mutex);
+            sem_post(&sync->master_turn_mutex);
+            break;
         }
 
-        // 5. Liberar los semáforos
-        sem_post(&sync->state_access_mutex); // Fin de escritura
-        sem_post(&sync->master_turn_mutex); // Fin del turno de escritura
+        sem_post(&sync->state_access_mutex);
+        sem_post(&sync->master_turn_mutex);
     }
-    
-    
-    //Liberar recursos
-    close(1); //cierro pipe
+
     close_shm(state_shm);
     close_shm(sync_shm);
 

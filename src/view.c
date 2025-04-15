@@ -32,14 +32,12 @@ int main(int argc, char *argv[]) {
 
         printf("\033[2J\033[H");
 
-        // Protocolo de lectura segura
         sem_wait(&sync->readers_count_mutex);
         if (++sync->players_reading == 1) {
             sem_wait(&sync->state_access_mutex);
         }
         sem_post(&sync->readers_count_mutex);
 
-        // Imprimir encabezado y estado
         printf("\n   ");
         for (int x = 0; x < width; x++) {
             printf("%4d", x);
@@ -51,7 +49,6 @@ int main(int argc, char *argv[]) {
         print_players_info(game_state);
         printf("\n");
 
-        // Fin de lectura segura
         sem_wait(&sync->readers_count_mutex);
         if (--sync->players_reading == 0) {
             sem_post(&sync->state_access_mutex);
