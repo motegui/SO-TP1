@@ -1,6 +1,9 @@
 #include <unistd.h>
 #include "player_functions.h"
 
+static const int dx[8] = {0, 1, 1, 1, 0, -1, -1, -1};
+static const int dy[8] = {-1, -1, 0, 1, 1, 1, 0, -1};
+
 int main(int argc, char *argv[]) {
     (void) argc;
 
@@ -24,9 +27,6 @@ int main(int argc, char *argv[]) {
         printf("[player] No encontré mi PID en la lista!\n");
         exit(EXIT_FAILURE);
     }
-
-    int dx[8] = {  0,  1,  1,  1,  0, -1, -1, -1 };
-    int dy[8] = { -1, -1,  0,  1,  1,  1,  0, -1 };
 
     int last_sum = -1;
 

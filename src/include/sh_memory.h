@@ -9,7 +9,7 @@
 #include <unistd.h>
 
 typedef struct {
-    char name[16]; // Nombre del jugador
+    char name[32]; // Nombre del jugador (evita warnings de truncamiento al formatear "player%d")
     unsigned int score; // Puntaje
     unsigned int invalid_moves; // Cantidad de solicitudes de movimientos inválidas realizadas
     unsigned int valid_moves; // Cantidad de solicitudes de movimientos válidas realizadas
@@ -47,7 +47,7 @@ shm_t *create_shm(char *name, size_t size, mode_t mode, int prot);
 void delete_shm(shm_t *p);
 shm_t *connect_shm(const char *name, size_t size, mode_t mode, int prot);
 void close_shm(shm_t * shm_p);
-void check_shm(shm_t * shm , char* msg);
+void check_shm(shm_t *shm, const char *msg);
 
 
 #endif

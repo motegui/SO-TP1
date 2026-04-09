@@ -15,8 +15,7 @@ void launch_player_processes(int player_qty, GameState_t *game_state, char *play
             execl(players[i], players[i], width_str, height_str, NULL);
             perror("execl jugador");
             exit(EXIT_FAILURE);
-        }
-        else{
+        } else if (pid > 0) {
             close(pipes[i][1]);
 
             game_state->players[i].pid = pid;
@@ -27,6 +26,9 @@ void launch_player_processes(int player_qty, GameState_t *game_state, char *play
 
             snprintf(game_state->players[i].name, sizeof(game_state->players[i].name), "player%d", i + 1);
 
+        } else {
+            perror("fork (jugador)");
+            exit(EXIT_FAILURE);
         }
     }
     distribute_players(game_state, width, height, player_qty);
@@ -41,6 +43,9 @@ void launch_view_process(char *view_path, int width, int height) {
         sprintf(height_str, "%d", height);
         execl(view_path, view_path, width_str, height_str, NULL);
         perror("execl vista");
+        exit(EXIT_FAILURE);
+    } else if (pid < 0) {
+        perror("fork (vista)");
         exit(EXIT_FAILURE);
     }
 }
@@ -97,13 +102,24 @@ void destroy_semaphores(Sync_t *sync){
 
 }
 
-bool read_players_moves(int pipes[][2], GameState_t *game_state, int dx[], int dy[], int player_qty) {
+bool read_players_moves(int pipes[][2], GameState_t *game_state, const int *dx, const int *dy,
+                        int player_qty) {
     static int current_player = 0;
 
+    /* Escuchar todos los pipes: si solo esperamos al "siguiente" en ronda fija,
+     * el master puede bloquearse en select mientras ese jugador sigue en el
+     * do/while esperando que cambien *sus* contadores (que solo cambian cuando
+     * el master lee *su* pipe). Deadlock clásico con 2+ jugadores. */
     fd_set read_fds;
     FD_ZERO(&read_fds);
-    FD_SET(pipes[current_player][0], &read_fds);
-    int max_fd = pipes[current_player][0];
+    int max_fd = -1;
+    for (int i = 0; i < player_qty; i++) {
+        int fd = pipes[i][0];
+        FD_SET(fd, &read_fds);
+        if (fd > max_fd) {
+            max_fd = fd;
+        }
+    }
 
     int ready = select(max_fd + 1, &read_fds, NULL, NULL, NULL);
     if (ready == -1) {
@@ -115,44 +131,57 @@ bool read_players_moves(int pipes[][2], GameState_t *game_state, int dx[], int d
         return false;
     }
 
-    if (FD_ISSET(pipes[current_player][0], &read_fds)) {
-        Player_t *p = &game_state->players[current_player];
-        unsigned char dir;
-        ssize_t bytes_read = read(pipes[current_player][0], &dir, 1);
-        if (bytes_read <= 0) {
-            p->blocked = true;
-            current_player = (current_player + 1) % player_qty;
-            return false;
+    int chosen = -1;
+    for (int k = 0; k < player_qty; k++) {
+        int i = (current_player + k) % player_qty;
+        if (FD_ISSET(pipes[i][0], &read_fds)) {
+            chosen = i;
+            break;
         }
+    }
+    if (chosen == -1) {
+        return false;
+    }
+    current_player = chosen;
 
-        if (dir > 7) {
+    Player_t *p = &game_state->players[current_player];
+    unsigned char dir;
+    ssize_t bytes_read = read(pipes[current_player][0], &dir, 1);
+    if (bytes_read <= 0) {
+        p->blocked = true;
+        current_player = (current_player + 1) % player_qty;
+        return false;
+    }
+
+    if (dir > 7) {
+        p->invalid_moves++;
+    } else {
+        int nx = p->x + dx[dir];
+        int ny = p->y + dy[dir];
+
+        if (nx < 0 || ny < 0 || nx >= game_state->width || ny >= game_state->height) {
             p->invalid_moves++;
         } else {
-            int nx = p->x + dx[dir];
-            int ny = p->y + dy[dir];
+            int pos = ny * game_state->width + nx;
+            int cell = game_state->board[pos];
 
-            if (nx < 0 || ny < 0 || nx >= game_state->width || ny >= game_state->height) {
-                p->invalid_moves++;
+            if (cell >= 1 && cell <= 9) {
+                // Dejamos marca del jugador en la celda anterior para poder
+                // seguir el rastro en la vista.
+                game_state->board[p->y * game_state->width + p->x] = -(current_player + 1);
+                p->x = nx;
+                p->y = ny;
+                p->score += cell;
+                game_state->board[pos] = -(current_player + 1);
+                p->valid_moves++;
+                current_player = (current_player + 1) % player_qty;
+                return true;
             } else {
-                int pos = ny * game_state->width + nx;
-                int cell = game_state->board[pos];
-
-                if (cell >= 1 && cell <= 9) {
-                    game_state->board[p->y * game_state->width + p->x] = 0;
-                    p->x = nx;
-                    p->y = ny;
-                    p->score += cell;
-                    game_state->board[pos] = -(current_player + 1);
-                    p->valid_moves++;
-                    current_player = (current_player + 1) % player_qty;
-                    return true;
-                } else {
-                    p->invalid_moves++;
-                }
+                p->invalid_moves++;
             }
         }
-        
     }
+
     current_player = (current_player + 1) % player_qty;
     return false;
 }
@@ -183,8 +212,8 @@ void determine_winner(GameState_t *game_state, int player_qty) {
 }
 
 bool check_all_players_blocked(GameState_t *game_state, int player_qty) {
-    int dx[8] = {0, 1, 1, 1, 0, -1, -1, -1};
-    int dy[8] = {-1, -1, 0, 1, 1, 1, 0, -1};
+    static const int dx[8] = {0, 1, 1, 1, 0, -1, -1, -1};
+    static const int dy[8] = {-1, -1, 0, 1, 1, 1, 0, -1};
 
     for (int i = 0; i < player_qty; i++) {
         if (game_state->players[i].blocked) continue;

@@ -1,4 +1,4 @@
-#include <fcntl.h>      // For O_* constants
+#include <fcntl.h>
 #include <semaphore.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -6,7 +6,6 @@
 #include <unistd.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
-#include <fcntl.h>
 #include "sh_memory.h"
 #include <string.h>
 
@@ -37,7 +36,6 @@ shm_t *create_shm(char *name, size_t size, mode_t mode, int prot) {
     if (!shm) {
         perror("[sh_memory -> create_shm] Error: malloc");
         munmap(p, size);
-        close(fd);
         exit(EXIT_FAILURE);
     }
 
@@ -86,9 +84,15 @@ shm_t *connect_shm(const char *name, size_t size, mode_t mode, int prot) {
     }
 
     shm_t *shm = malloc(sizeof(shm_t));
+    if (shm == NULL) {
+        perror("[sh_memory -> connect_shm] Error: malloc");
+        munmap(shm_p, size);
+        close(fd);
+        exit(EXIT_FAILURE);
+    }
     shm->size = size;
     strncpy(shm->name, name, sizeof(shm->name));
-    shm->shm_p = shm_p; 
+    shm->shm_p = shm_p;
 
     close(fd);
     return shm;
@@ -107,7 +111,7 @@ void close_shm(shm_t *shm) {
 }
 
 
-void check_shm(shm_t * shm , char* msg){
+void check_shm(shm_t *shm, const char *msg) {
     if(shm == NULL){
         fprintf(stderr, "%s\n", msg);
         exit(EXIT_FAILURE);
