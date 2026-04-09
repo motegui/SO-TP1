@@ -4,8 +4,19 @@ void launch_player_processes(int player_qty, GameState_t *game_state, char *play
     for (int i = 0; i < player_qty; i++) {
         pid_t pid = fork();
         if (pid == 0) {
+            // En el child solo necesitamos escribir al master por stdout.
+            // Cerramos TODOS los extremos de pipes heredados para evitar fugas de FDs.
+            for (int j = 0; j < player_qty; j++) {
+                if (j != i) {
+                    close(pipes[j][0]);
+                    close(pipes[j][1]);
+                }
+            }
             close(pipes[i][0]);
-            dup2(pipes[i][1], STDOUT_FILENO);
+            if (dup2(pipes[i][1], STDOUT_FILENO) == -1) {
+                perror("dup2 jugador");
+                exit(EXIT_FAILURE);
+            }
             close(pipes[i][1]);
 
             char width_str[10], height_str[10];
