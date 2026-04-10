@@ -10,6 +10,21 @@
 static const int k_dx[8] = {0, 1, 1, 1, 0, -1, -1, -1};
 static const int k_dy[8] = {-1, -1, 0, 1, 1, 1, 0, -1};
 
+static void mark_all_players_blocked(GameState_t *gs, unsigned int player_qty) {
+    for (unsigned int i = 0; i < player_qty; i++) {
+        gs->players[i].blocked = true;
+    }
+}
+
+static void end_game_with_final_view(MasterContext *ctx, Sync_t *sync, GameState_t *gs) {
+    mark_all_players_blocked(gs, ctx->player_qty);
+    if (ctx->view_path != NULL) {
+        sem_post(&sync->pending_print);
+        sem_wait(&sync->print_done);
+    }
+    gs->game_over = true;
+}
+
 static void master_print_config(const MasterContext *ctx) {
     printf("ancho: %d,\nalto: %d,\ndelay: %d,\ntimeout: %d,\nseed: %u\n",
            ctx->width, ctx->height, ctx->delay, ctx->timeout, ctx->seed);
@@ -77,14 +92,14 @@ int master_run(MasterContext *ctx) {
         sem_wait(&sync->print_done);
 
         if (check_all_players_blocked(game_state, ctx->player_qty)) {
-            game_state->game_over = true;
+            end_game_with_final_view(ctx, sync, game_state);
             break;
         }
 
         if (difftime(time(NULL), last_valid_move_time) >= ctx->timeout) {
             printf("[master] Timeout alcanzado (%d seg sin movimientos válidos). Fin del juego.\n",
                    ctx->timeout);
-            game_state->game_over = true;
+            end_game_with_final_view(ctx, sync, game_state);
             break;
         }
 
