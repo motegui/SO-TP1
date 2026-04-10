@@ -10,3 +10,9 @@ ChompChamps
 .bash_history
 
 .vscode/
+
+# macOS
+.DS_Store
+
+# debug symbols
+*.dSYM
