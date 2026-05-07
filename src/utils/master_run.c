@@ -18,6 +18,9 @@ static void mark_all_players_blocked(GameState_t *gs, unsigned int player_qty) {
 
 static void end_game_with_final_view(MasterContext *ctx, Sync_t *sync, GameState_t *gs) {
     mark_all_players_blocked(gs, ctx->player_qty);
+    for (int i = 0; i < ctx->player_qty; i++) {
+        sem_post(&sync->player_move_ok[i]);
+    }
     if (ctx->view_path != NULL) {
         sem_post(&sync->pending_print);
         sem_wait(&sync->print_done);
@@ -41,15 +44,14 @@ int master_run(MasterContext *ctx) {
 
     master_print_config(ctx);
 
-    size_t board_size = (size_t)ctx->width * (size_t)ctx->height * sizeof(int);
+    size_t board_size = (size_t)ctx->width * (size_t)ctx->height * sizeof(signed char);
     size_t game_state_size = sizeof(GameState_t) + board_size;
 
     shm_t *state_shm = create_shm("/game_state", game_state_size, 0644, PROT_READ | PROT_WRITE);
     check_shm(state_shm, "Error al crear la memoria compartida del estado del juego");
 
     GameState_t *game_state = (GameState_t *)state_shm->shm_p;
-    init_game_state(game_state, (unsigned short)ctx->width, (unsigned short)ctx->height,
-                    (unsigned int)ctx->player_qty, false);
+    init_game_state(game_state, ctx->width, ctx->height, ctx->player_qty, false);
 
     shm_t *sync_shm = create_shm("/game_sync", sizeof(Sync_t), 0666, PROT_READ | PROT_WRITE);
     check_shm(sync_shm, "Error al crear la memoria compartida de sincronización");
@@ -79,10 +81,15 @@ int master_run(MasterContext *ctx) {
     sem_post(&sync->pending_print);
     sem_wait(&sync->print_done);
 
+    for (int i = 0; i < ctx->player_qty; i++) {
+        sem_post(&sync->player_move_ok[i]);
+    }
+
     time_t last_valid_move_time = time(NULL);
 
     while (!game_state->game_over) {
-        bool player_moves = read_players_moves(pipes, game_state, k_dx, k_dy, ctx->player_qty);
+        bool player_moves =
+            read_players_moves(pipes, game_state, sync, k_dx, k_dy, ctx->player_qty);
 
         if (player_moves) {
             last_valid_move_time = time(NULL);

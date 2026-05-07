@@ -62,10 +62,10 @@ void launch_view_process(char *view_path, int width, int height) {
 }
 
 void init_game_state(GameState_t *game_state, int width, int height, int player_qty, bool game_over) {
-    game_state->width = width;
-    game_state->height = height;
+    game_state->width = (unsigned short)width;
+    game_state->height = (unsigned short)height;
     game_state->game_over = game_over;
-    game_state->player_qty = player_qty;
+    game_state->player_qty = (unsigned char)player_qty;
 }
 void distribute_players(GameState_t *game_state, int width, int height, int player_qty) {
     int rows = (int)sqrt(player_qty);
@@ -102,6 +102,9 @@ void init_sync_semaphores(Sync_t *sync){
     sem_init(&sync->readers_count_mutex, 1, 1);
     sem_init(&sync->state_access_mutex, 1, 1);
     sync->players_reading = 0;
+    for (int i = 0; i < 9; i++) {
+        sem_init(&sync->player_move_ok[i], 1, 0);
+    }
 }
 
 void destroy_semaphores(Sync_t *sync){
@@ -110,17 +113,15 @@ void destroy_semaphores(Sync_t *sync){
     sem_destroy(&sync->master_turn_mutex);
     sem_destroy(&sync->readers_count_mutex);
     sem_destroy(&sync->state_access_mutex);
-
+    for (int i = 0; i < 9; i++) {
+        sem_destroy(&sync->player_move_ok[i]);
+    }
 }
 
-bool read_players_moves(int pipes[][2], GameState_t *game_state, const int *dx, const int *dy,
-                        int player_qty) {
+bool read_players_moves(int pipes[][2], GameState_t *game_state, Sync_t *sync, const int *dx,
+                        const int *dy, int player_qty) {
     static int current_player = 0;
 
-    /* Escuchar todos los pipes: si solo esperamos al "siguiente" en ronda fija,
-     * el master puede bloquearse en select mientras ese jugador sigue en el
-     * do/while esperando que cambien *sus* contadores (que solo cambian cuando
-     * el master lee *su* pipe). Deadlock clásico con 2+ jugadores. */
     fd_set read_fds;
     FD_ZERO(&read_fds);
     int max_fd = -1;
@@ -161,6 +162,7 @@ bool read_players_moves(int pipes[][2], GameState_t *game_state, const int *dx, 
     if (bytes_read <= 0) {
         p->blocked = true;
         current_player = (current_player + 1) % player_qty;
+        sem_post(&sync->player_move_ok[chosen]);
         return false;
     }
 
@@ -186,6 +188,7 @@ bool read_players_moves(int pipes[][2], GameState_t *game_state, const int *dx, 
                 game_state->board[pos] = -(current_player + 1);
                 p->valid_moves++;
                 current_player = (current_player + 1) % player_qty;
+                sem_post(&sync->player_move_ok[chosen]);
                 return true;
             } else {
                 p->invalid_moves++;
@@ -194,6 +197,7 @@ bool read_players_moves(int pipes[][2], GameState_t *game_state, const int *dx, 
     }
 
     current_player = (current_player + 1) % player_qty;
+    sem_post(&sync->player_move_ok[chosen]);
     return false;
 }
 

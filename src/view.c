@@ -11,7 +11,7 @@ int main(int argc, char *argv[]) {
     int height = atoi(argv[2]);
     printf("ancho: %i, largo: %i\n", width, height);
 
-    size_t board_size = width * height * sizeof(int);
+    size_t board_size = (size_t)width * (size_t)height * sizeof(signed char);
     size_t game_state_size = sizeof(GameState_t) + board_size;
 
     shm_t *state_shm = connect_shm("/game_state", game_state_size, O_RDONLY, PROT_READ);
